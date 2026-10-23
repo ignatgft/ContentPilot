@@ -38,6 +38,7 @@ contentpilot-kit.zip
 contentpilot-android-kit.zip
 
 # Mobile / Flutter
+*.apk
 mobile/.dart_tool/
 mobile/.flutter-plugins
 mobile/.flutter-plugins-dependencies
