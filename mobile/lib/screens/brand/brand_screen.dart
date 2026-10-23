@@ -4,6 +4,20 @@ import '../../models/brand_models.dart';
 import '../../providers/brand_provider.dart';
 import '../../theme/app_theme.dart';
 
+class MenuItemData {
+  final TextEditingController nameController;
+  final TextEditingController priceController;
+
+  MenuItemData({required String name, required num price})
+      : nameController = TextEditingController(text: name),
+        priceController = TextEditingController(text: price > 0 ? price.toString() : '');
+
+  void dispose() {
+    nameController.dispose();
+    priceController.dispose();
+  }
+}
+
 class BrandScreen extends ConsumerStatefulWidget {
   const BrandScreen({super.key});
 
@@ -20,6 +34,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
   late TextEditingController _toneController;
   late TextEditingController _addressController;
   late TextEditingController _hoursController;
+  final List<MenuItemData> _menuItems = [];
   String _autonomyMode = 'COPILOT';
 
   @override
@@ -33,12 +48,24 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
     _nameController = TextEditingController(text: b?.name ?? '');
     _descController = TextEditingController(text: b?.description ?? '');
     _audienceController = TextEditingController(text: b?.audience ?? '');
-    _toneController = TextEditingController(text: b?.tone ?? 'Дружелюбный, экспертный, тёплый');
+    _toneController = TextEditingController(text: b?.tone ?? '');
     _autonomyMode = b?.autonomyMode ?? 'COPILOT';
 
     final facts = b?.facts;
-    _addressController = TextEditingController(text: facts?['address']?.toString() ?? 'ул. Ленина, д. 42');
-    _hoursController = TextEditingController(text: facts?['workingHours']?.toString() ?? '08:00 - 22:00');
+    _addressController = TextEditingController(text: facts?['address']?.toString() ?? '');
+    _hoursController = TextEditingController(text: facts?['workingHours']?.toString() ?? '');
+
+    final rawMenu = facts?['menu'];
+    if (rawMenu is List) {
+      for (final item in rawMenu) {
+        if (item is Map) {
+          _menuItems.add(MenuItemData(
+            name: item['name']?.toString() ?? '',
+            price: item['price'] is num ? item['price'] : num.tryParse(item['price']?.toString() ?? '0') ?? 0,
+          ));
+        }
+      }
+    }
   }
 
   @override
@@ -49,32 +76,38 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
     _toneController.dispose();
     _addressController.dispose();
     _hoursController.dispose();
+    for (final item in _menuItems) {
+      item.dispose();
+    }
     super.dispose();
   }
 
-  void _loadDemoPreset() {
-    final demo = ref.read(brandProvider.notifier).getDemoPreset();
+  void _addMenuItem() {
     setState(() {
-      _nameController.text = demo.name;
-      _descController.text = demo.description ?? '';
-      _audienceController.text = demo.audience ?? '';
-      _toneController.text = demo.tone ?? '';
-      _autonomyMode = demo.autonomyMode;
-
-      final facts = demo.facts;
-      _addressController.text = facts?['address']?.toString() ?? '';
-      _hoursController.text = facts?['workingHours']?.toString() ?? '';
+      _menuItems.add(MenuItemData(name: '', price: 0));
     });
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Данные кофейни для демо подставлены. Нажмите «Сохранить»!')),
-    );
+  void _removeMenuItem(int index) {
+    setState(() {
+      _menuItems[index].dispose();
+      _menuItems.removeAt(index);
+    });
   }
 
   Future<void> _save() async {
     if (!_formKey.currentState!.validate()) return;
     FocusScope.of(context).unfocus();
 
+    final menuData = _menuItems
+        .where((m) => m.nameController.text.trim().isNotEmpty)
+        .map((m) => {
+              'name': m.nameController.text.trim(),
+              'price': num.tryParse(m.priceController.text.trim()) ?? 0,
+            })
+        .toList();
+
+    final currentBrand = ref.read(brandProvider).brand;
     final brand = BrandModel(
       name: _nameController.text.trim(),
       description: _descController.text.trim(),
@@ -84,24 +117,16 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
       facts: {
         'address': _addressController.text.trim(),
         'workingHours': _hoursController.text.trim(),
-        'menu': [
-          {'name': 'Сезонный латте Тыква-Пряности', 'price': 320},
-          {'name': 'Капучино', 'price': 250},
-          {'name': 'Флэт уайт', 'price': 280},
-          {'name': 'Круассан с миндалем', 'price': 190},
-        ],
+        'menu': menuData,
       },
-      samples: [
-        'Утро начинается не с кофе, а с выбора: нежный латте или бодрящий фильтр? Ждём вас на Ленина, 42! ☕️✨',
-        'Наш новый тыквенно-пряный латте уже согревает гостей! Спешите попробовать осенний хит всего за 320₽ 🍂🎃',
-      ],
+      samples: currentBrand?.samples ?? [],
     );
 
     final ok = await ref.read(brandProvider.notifier).saveBrand(brand);
     if (mounted && ok) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Профиль бренда успешно сохранен в базе данных!'),
+          content: Text('Профиль бренда успешно сохранен!'),
           backgroundColor: Colors.green,
         ),
       );
@@ -121,58 +146,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Quick Demo 3-min Fill button (Pro Max)
-            CpCard(
-              color: colors.chipBg,
-              border: Border.all(color: colors.accent.withOpacity(0.2)),
-              borderRadius: 20,
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(6),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.flash_on, color: Colors.amber, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Text(
-                        'Быстрый демо-сценарий (3 минуты)',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          color: colors.chipText,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Заполняет проверенные данные кофейни «Зёрна и Истории»: меню, цены, адрес и часы работы.',
-                    style: TextStyle(fontSize: 12, color: colors.muted, height: 1.35),
-                  ),
-                  const SizedBox(height: 12),
-                  FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      minimumSize: const Size.fromHeight(42),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.coffee_rounded, size: 18),
-                    label: const Text('Заполнить кофейню для демо (3 мин)', style: TextStyle(fontWeight: FontWeight.w700)),
-                    onPressed: _loadDemoPreset,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Main Brand Fields Card (Pro Max)
+            // Main Brand Fields Card
             CpCard(
               borderRadius: 20,
               padding: const EdgeInsets.all(18),
@@ -192,7 +166,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
                     controller: _nameController,
                     decoration: const InputDecoration(
                       labelText: 'Название бренда *',
-                      hintText: 'Кофейня "Зёрна и Истории"',
+                      hintText: 'Например, Додо Пицца или Студия Красоты',
                     ),
                     validator: (v) => v == null || v.trim().isEmpty ? 'Введите название бренда' : null,
                   ),
@@ -202,7 +176,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
                     maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Описание бизнеса',
-                      hintText: 'Уютная спешелти кофейня в центре города...',
+                      hintText: 'Кратко о позиционировании, миссии и продуктах...',
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -211,7 +185,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
                     maxLines: 2,
                     decoration: const InputDecoration(
                       labelText: 'Целевая аудитория',
-                      hintText: 'Студенты, фрилансеры, любители спешелти кофе...',
+                      hintText: 'Кто ваши основные клиенты и покупатели...',
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -219,7 +193,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
                     controller: _toneController,
                     decoration: const InputDecoration(
                       labelText: 'Тон общения (Tone of Voice)',
-                      hintText: 'Дружелюбный, тёплый, экспертный',
+                      hintText: 'Дружелюбный, экспертный, лаконичный',
                     ),
                   ),
                 ],
@@ -227,7 +201,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Facts & Pricing Memory Card (Pro Max)
+            // Facts & Pricing Memory Card
             CpCard(
               borderRadius: 20,
               padding: const EdgeInsets.all(18),
@@ -245,27 +219,29 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
                         child: Icon(Icons.fact_check_outlined, color: colors.accent, size: 20),
                       ),
                       const SizedBox(width: 10),
-                      Text(
-                        'Память фактов и цен (база знаний)',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w800,
-                          color: colors.ink,
+                      Expanded(
+                        child: Text(
+                          'Память фактов и цен (база знаний)',
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: colors.ink,
+                          ),
                         ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'ИИ сверяет цены и факты в сгенерированных постах с этими данными для предотвращения галлюцинаций.',
+                    'ИИ сверяет цены и факты в сгенерированных публикациях с этими данными для предотвращения ошибок.',
                     style: TextStyle(fontSize: 12, color: colors.muted, height: 1.35),
                   ),
                   const SizedBox(height: 14),
                   TextFormField(
                     controller: _addressController,
                     decoration: const InputDecoration(
-                      labelText: 'Адрес',
-                      hintText: 'ул. Ленина, д. 42',
+                      labelText: 'Адрес локации',
+                      hintText: 'Адрес офиса, магазина или онлайн',
                       prefixIcon: Icon(Icons.location_on_outlined),
                     ),
                   ),
@@ -274,38 +250,93 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
                     controller: _hoursController,
                     decoration: const InputDecoration(
                       labelText: 'Часы работы',
-                      hintText: '08:00 - 22:00',
+                      hintText: 'Например, Пн-Вс: 09:00 - 21:00',
                       prefixIcon: Icon(Icons.access_time),
                     ),
                   ),
-                  const SizedBox(height: 14),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: colors.chipBg,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Зафиксированное меню и цены:',
-                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: colors.chipText),
-                        ),
-                        const SizedBox(height: 6),
-                        const Text('• Сезонный латте Тыква-Пряности: 320₽', style: TextStyle(fontSize: 13)),
-                        const Text('• Капучино: 250₽', style: TextStyle(fontSize: 13)),
-                        const Text('• Флэт уайт: 280₽', style: TextStyle(fontSize: 13)),
-                        const Text('• Круассан с миндалем: 190₽', style: TextStyle(fontSize: 13)),
-                      ],
-                    ),
+                  const SizedBox(height: 18),
+
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Позиции и цены (меню / услуги):',
+                        style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: colors.ink),
+                      ),
+                      TextButton.icon(
+                        onPressed: _addMenuItem,
+                        icon: const Icon(Icons.add, size: 16),
+                        label: const Text('Добавить', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 6),
+
+                  if (_menuItems.isEmpty)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: colors.chipBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: colors.border.withOpacity(0.5)),
+                      ),
+                      child: Text(
+                        'Позиции не добавлены. Нажмите «Добавить», чтобы зафиксировать наименования и цены.',
+                        style: TextStyle(fontSize: 12, color: colors.muted),
+                        textAlign: TextAlign.center,
+                      ),
+                    )
+                  else
+                    ListView.separated(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: _menuItems.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, idx) {
+                        final item = _menuItems[idx];
+                        return Row(
+                          children: [
+                            Expanded(
+                              flex: 3,
+                              child: TextFormField(
+                                controller: item.nameController,
+                                decoration: const InputDecoration(
+                                  hintText: 'Наименование',
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              flex: 2,
+                              child: TextFormField(
+                                controller: item.priceController,
+                                keyboardType: TextInputType.number,
+                                decoration: const InputDecoration(
+                                  hintText: 'Цена ₽',
+                                  isDense: true,
+                                  contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            IconButton(
+                              icon: const Icon(Icons.close, size: 18, color: Colors.redAccent),
+                              onPressed: () => _removeMenuItem(idx),
+                              tooltip: 'Удалить',
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                 ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // Autonomy Mode (Pro Max)
+            // Autonomy Mode
             CpCard(
               borderRadius: 20,
               padding: const EdgeInsets.all(18),
@@ -342,7 +373,7 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
             ),
             const SizedBox(height: 20),
 
-            // Save Button (Pro Max)
+            // Save Button
             CpGradientButton(
               text: state.isLoading ? 'Сохранение...' : 'Сохранить профиль бренда',
               icon: Icons.save_outlined,

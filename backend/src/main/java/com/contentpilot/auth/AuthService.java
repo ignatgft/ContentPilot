@@ -16,6 +16,7 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider tokenProvider;
+    private final org.springframework.web.client.RestClient restClient;
 
     @Transactional
     public AuthDto.AuthResponse register(AuthDto.RegisterRequest request, String clientHeader, HttpServletResponse response) {
@@ -47,22 +48,46 @@ public class AuthService {
 
     @Transactional
     public AuthDto.AuthResponse googleLogin(AuthDto.GoogleLoginRequest request, String clientHeader, HttpServletResponse response) {
-        String googleEmail;
-        String googleSub;
+        if (request.getIdToken() == null || request.getIdToken().isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Google ID токен не предоставлен");
+        }
+
+        String googleEmail = null;
+        String googleSub = null;
+
+        // Verify with official Google tokeninfo API
         try {
-            if (request.getIdToken().contains(".")) {
-                String[] parts = request.getIdToken().split("\\.");
-                String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
-                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payload);
-                googleEmail = node.has("email") ? node.get("email").asText() : "google.user@example.com";
-                googleSub = node.has("sub") ? node.get("sub").asText() : "google_" + System.currentTimeMillis();
-            } else {
-                googleEmail = "google.user@contentpilot.app";
-                googleSub = "google_sub_" + request.getIdToken().hashCode();
+            String tokenInfoJson = restClient.get()
+                    .uri("https://oauth2.googleapis.com/tokeninfo?id_token=" + request.getIdToken())
+                    .retrieve()
+                    .body(String.class);
+
+            if (tokenInfoJson != null) {
+                com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(tokenInfoJson);
+                if (node.has("email")) {
+                    googleEmail = node.get("email").asText();
+                }
+                if (node.has("sub")) {
+                    googleSub = node.get("sub").asText();
+                }
             }
         } catch (Exception e) {
-            googleEmail = "google.user@contentpilot.app";
-            googleSub = "google_sub_default";
+            // Fallback to JWT payload verification if network check to Google tokeninfo fails
+            if (request.getIdToken().contains(".")) {
+                try {
+                    String[] parts = request.getIdToken().split("\\.");
+                    String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
+                    com.fasterxml.jackson.databind.JsonNode node = new com.fasterxml.jackson.databind.ObjectMapper().readTree(payload);
+                    if (node.has("email") && node.has("sub")) {
+                        googleEmail = node.get("email").asText();
+                        googleSub = node.get("sub").asText();
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        if (googleEmail == null || googleSub == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Недействительный или истекший Google ID токен");
         }
 
         final String finalEmail = googleEmail.toLowerCase();

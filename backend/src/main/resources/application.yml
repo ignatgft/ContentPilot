@@ -23,13 +23,13 @@ spring:
     locations: classpath:db/migration
 
 app:
-  demo-mode-enabled: ${DEMO_MODE_ENABLED:true}
+  demo-mode-enabled: ${DEMO_MODE_ENABLED:false}
   jwt:
     secret: ${JWT_SECRET:contentpilot-hackathon-super-secret-key-32bytes-min-len}
     access-token-expiration-ms: 900000 # 15 minutes
     refresh-token-expiration-ms: 604800000 # 7 days
   ai:
-    text-provider: ${AI_TEXT_PROVIDER:gemini}
+    text-provider: ${AI_TEXT_PROVIDER:auto}
     text-model: ${AI_TEXT_MODEL:gemini-2.5-flash}
     gemini-api-key: ${GEMINI_API_KEY:}
     claude-api-key: ${CLAUDE_API_KEY:}

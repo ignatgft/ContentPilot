@@ -54,46 +54,47 @@ public class ClaudeGenerationService {
     }
 
     public List<GeneratedPost> generateCampaignPosts(Brand brand, String goal, int durationDays) {
-        String targetProvider = configuredProviderName != null ? configuredProviderName.trim().toLowerCase() : "gemini";
+        String targetProvider = configuredProviderName != null ? configuredProviderName.trim().toLowerCase() : "auto";
 
-        TextGenerationProvider selected = providers.stream()
-                .filter(p -> p.getProviderName().equalsIgnoreCase(targetProvider))
-                .findFirst()
-                .orElse(null);
+        // 1. If a specific provider was explicitly configured and is available, use it
+        if (!"auto".equals(targetProvider) && !"fallback".equals(targetProvider)) {
+            TextGenerationProvider selected = providers.stream()
+                    .filter(p -> p.getProviderName().equalsIgnoreCase(targetProvider))
+                    .findFirst()
+                    .orElse(null);
 
-        if (selected != null && selected.isAvailable()) {
-            try {
-                log.info("Generating campaign via primary AI text provider: {}", selected.getProviderName());
-                return selected.generateCampaignPosts(brand, goal, durationDays);
-            } catch (Exception e) {
-                log.warn("Primary AI provider '{}' failed: {}. Evaluating fallback...", selected.getProviderName(), e.getMessage());
-                if (!demoModeEnabled) {
-                    throw new IllegalStateException("Ошибка генерации AI через '" + selected.getProviderName() + "': " + e.getMessage(), e);
+            if (selected != null && selected.isAvailable()) {
+                try {
+                    log.info("Generating campaign via primary AI text provider: {}", selected.getProviderName());
+                    return selected.generateCampaignPosts(brand, goal, durationDays);
+                } catch (Exception e) {
+                    log.warn("Primary AI provider '{}' failed: {}. Evaluating backup...", selected.getProviderName(), e.getMessage());
+                    if (!demoModeEnabled) {
+                        throw new IllegalStateException("Ошибка генерации AI через '" + selected.getProviderName() + "': " + e.getMessage(), e);
+                    }
                 }
+            } else if (!demoModeEnabled) {
+                throw new IllegalStateException(String.format(
+                        "AI-провайдер '%s' не настроен или недоступен. Укажите API-ключ в переменных окружения (GEMINI_API_KEY, CLAUDE_API_KEY) или включите DEMO_MODE_ENABLED=true.",
+                        targetProvider
+                ));
             }
         }
 
-        // Try any other available cloud provider before fallback
+        // 2. In auto mode (or fallback mode), try any available cloud AI provider (Gemini, Claude, Ollama)
         for (TextGenerationProvider provider : providers) {
             if (!provider.getProviderName().equalsIgnoreCase("fallback") && provider.isAvailable()) {
                 try {
-                    log.info("Attempting backup available provider: {}", provider.getProviderName());
+                    log.info("Generating campaign via available AI provider: {}", provider.getProviderName());
                     return provider.generateCampaignPosts(brand, goal, durationDays);
                 } catch (Exception e) {
-                    log.warn("Backup provider '{}' also failed: {}", provider.getProviderName(), e.getMessage());
+                    log.warn("Provider '{}' failed: {}", provider.getProviderName(), e.getMessage());
                 }
             }
         }
 
-        // Check demo mode permission for fallback
-        if (demoModeEnabled || "fallback".equalsIgnoreCase(targetProvider)) {
-            log.info("Using Brand Memory generator in demo mode (DEMO_MODE_ENABLED=true)");
-            return fallbackProvider.generateCampaignPosts(brand, goal, durationDays);
-        }
-
-        throw new IllegalStateException(String.format(
-                "AI-провайдер '%s' не настроен или недоступен. Укажите API-ключ в переменных окружения (GEMINI_API_KEY, CLAUDE_API_KEY) или включите DEMO_MODE_ENABLED=true для презентационного режима.",
-                targetProvider
-        ));
+        // 3. Fallback to Brand Memory generator
+        log.info("Generating campaign posts using deterministic Brand Memory provider");
+        return fallbackProvider.generateCampaignPosts(brand, goal, durationDays);
     }
 }

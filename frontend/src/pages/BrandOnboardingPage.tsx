@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../api/client';
-import { Store, Sparkles, Check, Coffee, Clock, MapPin } from 'lucide-react';
+import { Store, Sparkles, Check, Coffee, Clock, MapPin, Plus, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+interface MenuItem {
+  name: string;
+  price: number;
+}
 
 interface BrandData {
   id?: number;
@@ -10,7 +15,7 @@ interface BrandData {
   audience: string;
   tone: string;
   facts: {
-    menu: Array<{ name: string; price: number }>;
+    menu: MenuItem[];
     schedule: string;
     address: string;
   };
@@ -18,26 +23,18 @@ interface BrandData {
   samples: string[];
 }
 
-const DEMO_COFFEE_SHOP: BrandData = {
-  name: 'Coffee Point',
-  description: 'Уютная спешелти кофейня в центре города с авторскими напитками и свежей выпечкой.',
-  audience: 'Студенты, фрилансеры, креативные специалисты и жители района 20–35 лет.',
-  tone: 'Дружелюбный, теплый, заботливый, экспертный.',
+const EMPTY_BRAND: BrandData = {
+  name: '',
+  description: '',
+  audience: '',
+  tone: '',
   facts: {
-    menu: [
-      { name: 'Сезонный латте Тыква-Пряности', price: 320 },
-      { name: 'Капучино классический 300мл', price: 250 },
-      { name: 'Флэт уайт 200мл', price: 280 },
-      { name: 'Миндальный круассан', price: 210 },
-    ],
-    schedule: 'Пн–Вс с 08:00 до 22:00',
-    address: 'ул. Ленина, д. 42 (напротив парка)',
+    menu: [],
+    schedule: '',
+    address: '',
   },
   autonomyMode: 'SEMI_AUTO',
-  samples: [
-    'Осень создана для уютных встреч и согревающего кофе в Coffee Point!',
-    'Свежая обжарка 100% арабика от локальных обжарщиков каждое утро.',
-  ],
+  samples: [],
 };
 
 export const BrandOnboardingPage: React.FC = () => {
@@ -46,7 +43,7 @@ export const BrandOnboardingPage: React.FC = () => {
   const [fetching, setFetching] = useState(true);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const [formData, setFormData] = useState<BrandData>(DEMO_COFFEE_SHOP);
+  const [formData, setFormData] = useState<BrandData>(EMPTY_BRAND);
 
   useEffect(() => {
     async function loadBrand() {
@@ -56,13 +53,17 @@ export const BrandOnboardingPage: React.FC = () => {
           setFormData({
             ...brand,
             facts: typeof brand.facts === 'object' && brand.facts !== null
-              ? (brand.facts as any)
-              : DEMO_COFFEE_SHOP.facts,
+              ? {
+                  menu: Array.isArray((brand.facts as any).menu) ? (brand.facts as any).menu : [],
+                  schedule: (brand.facts as any).schedule || '',
+                  address: (brand.facts as any).address || '',
+                }
+              : EMPTY_BRAND.facts,
             samples: brand.samples || [],
           });
         }
       } catch (e) {
-        // Not configured yet, defaults remain
+        // Not configured yet, defaults remain empty
       } finally {
         setFetching(false);
       }
@@ -70,14 +71,49 @@ export const BrandOnboardingPage: React.FC = () => {
     loadBrand();
   }, []);
 
-  const handleFillDemo = () => {
-    setFormData(DEMO_COFFEE_SHOP);
-    setSuccessMsg('Данные кофейни успешно подставлены для демо!');
-    setTimeout(() => setSuccessMsg(null), 3000);
+  const handleAddMenuItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      facts: {
+        ...prev.facts,
+        menu: [...prev.facts.menu, { name: '', price: 0 }],
+      },
+    }));
+  };
+
+  const handleRemoveMenuItem = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      facts: {
+        ...prev.facts,
+        menu: prev.facts.menu.filter((_, idx) => idx !== index),
+      },
+    }));
+  };
+
+  const handleUpdateMenuItem = (index: number, field: 'name' | 'price', value: string | number) => {
+    setFormData(prev => {
+      const updatedMenu = [...prev.facts.menu];
+      updatedMenu[index] = {
+        ...updatedMenu[index],
+        [field]: value,
+      };
+      return {
+        ...prev,
+        facts: {
+          ...prev.facts,
+          menu: updatedMenu,
+        },
+      };
+    });
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!formData.name.trim()) {
+      alert('Укажите название бренда');
+      return;
+    }
     setLoading(true);
     setSuccessMsg(null);
     try {
@@ -104,7 +140,7 @@ export const BrandOnboardingPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
-      {/* Title & Quick Demo Fill */}
+      {/* Title */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--chip-bg)] text-[var(--chip-text)] text-xs font-bold mb-2">
@@ -118,15 +154,6 @@ export const BrandOnboardingPage: React.FC = () => {
             На основе этих данных ИИ строит контент-стратегию и проверяет цены публикаций
           </p>
         </div>
-
-        <button
-          type="button"
-          onClick={handleFillDemo}
-          className="min-h-[44px] px-4 py-2 rounded-xl border border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--chip-bg)] font-bold text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer select-none"
-        >
-          <Sparkles size={16} />
-          <span>Заполнить кофейню для демо (3 мин)</span>
-        </button>
       </div>
 
       {successMsg && (
@@ -147,14 +174,14 @@ export const BrandOnboardingPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold text-[var(--ink)] mb-1">
-                Название заведения / бренда
+                Название заведения / бренда *
               </label>
               <input
                 type="text"
                 required
                 value={formData.name}
                 onChange={e => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Coffee Point"
+                placeholder="Например, Моя Компания или Магазин Уюта"
                 className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
@@ -167,7 +194,7 @@ export const BrandOnboardingPage: React.FC = () => {
                 type="text"
                 value={formData.tone}
                 onChange={e => setFormData({ ...formData, tone: e.target.value })}
-                placeholder="Дружелюбный, экспертный, теплый"
+                placeholder="Дружелюбный, экспертный, лаконичный"
                 className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--accent)]"
               />
             </div>
@@ -181,7 +208,7 @@ export const BrandOnboardingPage: React.FC = () => {
               rows={3}
               value={formData.description}
               onChange={e => setFormData({ ...formData, description: e.target.value })}
-              placeholder="Спешелти кофейня с авторскими сезонными напитками..."
+              placeholder="Расскажите кратко о вашей компании, товарах или услугах..."
               className="w-full p-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--accent)]"
             />
           </div>
@@ -194,7 +221,7 @@ export const BrandOnboardingPage: React.FC = () => {
               type="text"
               value={formData.audience}
               onChange={e => setFormData({ ...formData, audience: e.target.value })}
-              placeholder="Студенты, фрилансеры 20-35 лет"
+              placeholder="Клиенты, возраст, интересы, сфера деятельности"
               className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--accent)]"
             />
           </div>
@@ -205,45 +232,59 @@ export const BrandOnboardingPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[var(--ink)] flex items-center gap-2">
               <Sparkles size={20} className="text-[var(--accent)]" />
-              <span>Факты и меню (для фактчекинга)</span>
+              <span>Факты, товары и цены (для фактчекинга)</span>
             </h2>
-            <span className="text-xs text-[var(--muted)]">ИИ строго сверяет цены с этим списком</span>
+            <button
+              type="button"
+              onClick={handleAddMenuItem}
+              className="px-3 py-1.5 rounded-lg border border-[var(--border)] hover:border-[var(--accent)] text-[var(--accent)] text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+            >
+              <Plus size={14} />
+              <span>Добавить позицию</span>
+            </button>
           </div>
+          <p className="text-xs text-[var(--muted)]">
+            ИИ строго сверяет указанные в постах цены с этим списком. Указывайте актуальные позиции.
+          </p>
 
           <div className="space-y-3">
-            <label className="block text-xs font-bold text-[var(--ink)]">
-              Позиции меню и утвержденные цены (в рублях)
-            </label>
-            {formData.facts.menu.map((item, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <input
-                  type="text"
-                  value={item.name}
-                  onChange={e => {
-                    const newMenu = [...formData.facts.menu];
-                    newMenu[idx].name = e.target.value;
-                    setFormData({ ...formData, facts: { ...formData.facts, menu: newMenu } });
-                  }}
-                  className="flex-1 min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm"
-                  placeholder="Название напитка или десерта"
-                />
-                <div className="relative w-32">
-                  <input
-                    type="number"
-                    value={item.price}
-                    onChange={e => {
-                      const newMenu = [...formData.facts.menu];
-                      newMenu[idx].price = Number(e.target.value);
-                      setFormData({ ...formData, facts: { ...formData.facts, menu: newMenu } });
-                    }}
-                    className="w-full min-h-[44px] px-3.5 pr-8 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm text-right font-bold"
-                  />
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)] font-bold">
-                    ₽
-                  </span>
-                </div>
+            {formData.facts.menu.length === 0 ? (
+              <div className="p-4 rounded-xl border border-dashed border-[var(--border)] text-center text-xs text-[var(--muted)]">
+                Позиции пока не добавлены. Нажмите «Добавить позицию», чтобы внести товары или услуги с ценами.
               </div>
-            ))}
+            ) : (
+              formData.facts.menu.map((item, idx) => (
+                <div key={idx} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={item.name}
+                    onChange={e => handleUpdateMenuItem(idx, 'name', e.target.value)}
+                    className="flex-1 min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm"
+                    placeholder="Название товара или услуги"
+                  />
+                  <div className="relative w-32">
+                    <input
+                      type="number"
+                      value={item.price || ''}
+                      onChange={e => handleUpdateMenuItem(idx, 'price', Number(e.target.value) || 0)}
+                      placeholder="0"
+                      className="w-full min-h-[44px] px-3.5 pr-8 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm text-right font-bold"
+                    />
+                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[var(--muted)] font-bold">
+                      ₽
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveMenuItem(idx)}
+                    title="Удалить"
+                    className="p-2.5 rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
@@ -261,7 +302,7 @@ export const BrandOnboardingPage: React.FC = () => {
                     facts: { ...formData.facts, schedule: e.target.value },
                   })
                 }
-                placeholder="Пн-Вс 08:00 - 22:00"
+                placeholder="Например, Пн-Пт 09:00 - 19:00"
                 className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm"
               />
             </div>
@@ -280,7 +321,7 @@ export const BrandOnboardingPage: React.FC = () => {
                     facts: { ...formData.facts, address: e.target.value },
                   })
                 }
-                placeholder="ул. Ленина, д. 42"
+                placeholder="Адрес офиса, магазина или онлайн"
                 className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm"
               />
             </div>

@@ -127,21 +127,20 @@ public class TelegramPublisherService {
                 return false;
             }
         } else {
-            // Emulated publish for test/demo mode when real Telegram credentials are not yet configured
-            log.info("Simulating Telegram publish for post {} in demo mode", post.getId());
+            String errorMsg = "Telegram бот или канал не настроен. Укажите токен бота и подключите канал в разделе Каналы.";
+            log.warn("Cannot publish post {}: {}", post.getId(), errorMsg);
 
             publishLogRepository.save(PublishLog.builder()
                     .post(post)
                     .attempt(currentAttempt)
-                    .result("SUCCESS")
-                    .message("Демо-публикация успешно сымитирована (подключите TELEGRAM_BOT_TOKEN для реальной отправки)")
+                    .result("FAILED")
+                    .message(errorMsg)
                     .build());
 
-            post.setStatus("PUBLISHED");
-            post.setPublishedAt(OffsetDateTime.now());
-            post.setError(null);
+            post.setStatus("FAILED");
+            post.setError(errorMsg);
             postRepository.save(post);
-            return true;
+            return false;
         }
     }
 }

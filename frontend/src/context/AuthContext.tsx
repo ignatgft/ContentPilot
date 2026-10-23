@@ -64,10 +64,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const googleLogin = async (idToken?: string) => {
-    const mockToken = idToken || `mock_google_id_token_${Date.now()}`;
+    if (!idToken) {
+      throw new Error('Google ID токен отсутствует. Войдите через форму Google Identity Services.');
+    }
     const data = await apiRequest<{ token: string; user: User }>('/auth/google', {
       method: 'POST',
-      body: JSON.stringify({ idToken: mockToken }),
+      body: JSON.stringify({ idToken }),
     });
     localStorage.setItem('token', data.token);
     setToken(data.token);
