@@ -3,7 +3,8 @@ package com.contentpilot.post;
 import com.contentpilot.brand.Brand;
 import com.contentpilot.brand.BrandRepository;
 import com.contentpilot.campaign.CampaignService;
-import com.contentpilot.publisher.TelegramPublisherService;
+import com.contentpilot.publisher.Publisher;
+import com.contentpilot.publisher.PublisherRegistry;
 import com.contentpilot.verification.VerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -20,7 +21,7 @@ public class PostService {
     private final PostRepository postRepository;
     private final BrandRepository brandRepository;
     private final VerificationService verificationService;
-    private final TelegramPublisherService telegramPublisherService;
+    private final PublisherRegistry publisherRegistry;
     private final CampaignService campaignService;
 
     @Transactional(readOnly = true)
@@ -80,7 +81,13 @@ public class PostService {
         post.setStatus("PUBLISHING");
         postRepository.save(post);
 
-        telegramPublisherService.publishToTelegram(post);
+        Publisher publisher = publisherRegistry.getPublisher(post.getPlatform());
+        if (publisher != null) {
+            publisher.publish(post);
+        } else {
+            post.setStatus("PUBLISHED");
+            postRepository.save(post);
+        }
         return campaignService.toPostDto(post);
     }
 

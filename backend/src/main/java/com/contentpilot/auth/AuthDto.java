@@ -36,6 +36,12 @@ public class AuthDto {
     }
 
     @Data
+    public static class RefreshTokenRequest {
+        @NotBlank(message = "Refresh-токен обязателен")
+        private String refreshToken;
+    }
+
+    @Data
     public static class UserInfo {
         private Long id;
         private String email;
@@ -44,10 +50,16 @@ public class AuthDto {
     @Data
     public static class AuthResponse {
         private String token;
+        private String refreshToken;
         private UserInfo user;
 
         public AuthResponse(String token, User user) {
+            this(token, null, user);
+        }
+
+        public AuthResponse(String token, String refreshToken, User user) {
             this.token = token;
+            this.refreshToken = refreshToken;
             this.user = new UserInfo();
             this.user.setId(user.getId());
             this.user.setEmail(user.getEmail());

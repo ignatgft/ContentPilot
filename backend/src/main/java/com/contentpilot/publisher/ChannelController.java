@@ -22,17 +22,18 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/v1/channels")
 @RequiredArgsConstructor
-@Tag(name = "Channels", description = "Подключение Telegram каналов и внешних площадок")
+@Tag(name = "Channels", description = "Подключение Telegram, VK, YouTube, Instagram и TikTok")
 public class ChannelController {
 
     private final ChannelRepository channelRepository;
     private final BrandRepository brandRepository;
+    private final PublisherRegistry publisherRegistry;
 
     @Data
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ConnectChannelRequest {
-        @NotBlank(message = "ID канала обязателен (например, @my_coffee_bar)")
+        @NotBlank(message = "ID канала / сообщества / аккаунта обязателен")
         private String externalId;
         private String botToken;
         private String platform = "TELEGRAM";
@@ -47,6 +48,12 @@ public class ChannelController {
         private String platform;
         private String externalId;
         private String status;
+    }
+
+    @GetMapping("/capabilities")
+    @Operation(summary = "Получить возможности и лимиты всех поддерживаемых площадок")
+    public ResponseEntity<List<PublisherCapabilities>> getCapabilities() {
+        return ResponseEntity.ok(publisherRegistry.getAllCapabilities());
     }
 
     @GetMapping
@@ -67,25 +74,28 @@ public class ChannelController {
         return ResponseEntity.ok(responses);
     }
 
-    @PostMapping("/telegram")
-    @Operation(summary = "Подключить Telegram канал")
-    public ResponseEntity<ChannelResponse> connectTelegram(
+    @PostMapping("/{platform}")
+    @Operation(summary = "Подключить канал (telegram, vk, youtube, instagram, tiktok)")
+    public ResponseEntity<ChannelResponse> connectChannel(
+            @PathVariable String platform,
             @AuthenticationPrincipal User user,
             @RequestBody ConnectChannelRequest request) {
         Brand brand = brandRepository.findByUserId(user.getId())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Сначала создайте бренд"));
 
-        Channel channel = channelRepository.findFirstByBrandIdAndPlatform(brand.getId(), "TELEGRAM")
+        String normalizedPlatform = platform.toUpperCase();
+
+        Channel channel = channelRepository.findFirstByBrandIdAndPlatform(brand.getId(), normalizedPlatform)
                 .orElseGet(() -> Channel.builder()
                         .brand(brand)
-                        .platform("TELEGRAM")
+                        .platform(normalizedPlatform)
                         .build());
 
         channel.setExternalId(request.getExternalId());
         if (request.getBotToken() != null && !request.getBotToken().isBlank()) {
             channel.setEncryptedToken(request.getBotToken());
         } else if (channel.getEncryptedToken() == null) {
-            channel.setEncryptedToken("default-demo-token");
+            channel.setEncryptedToken("demo-token-" + normalizedPlatform.toLowerCase());
         }
         channel.setStatus("CONNECTED");
         channel = channelRepository.save(channel);

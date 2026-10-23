@@ -18,7 +18,7 @@ public class AuthService {
     private final JwtTokenProvider tokenProvider;
 
     @Transactional
-    public AuthDto.AuthResponse register(AuthDto.RegisterRequest request, HttpServletResponse response) {
+    public AuthDto.AuthResponse register(AuthDto.RegisterRequest request, String clientHeader, HttpServletResponse response) {
         if (userRepository.existsByEmail(request.getEmail().toLowerCase())) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Пользователь с такой почтой уже существует");
         }
@@ -30,15 +30,11 @@ public class AuthService {
 
         user = userRepository.save(user);
 
-        String accessToken = tokenProvider.generateAccessToken(user.getId(), user.getEmail());
-        String refreshToken = tokenProvider.generateRefreshToken(user.getId());
-        setRefreshTokenCookie(response, refreshToken);
-
-        return new AuthDto.AuthResponse(accessToken, user);
+        return createAuthResponse(user, clientHeader, response);
     }
 
     @Transactional(readOnly = true)
-    public AuthDto.AuthResponse login(AuthDto.LoginRequest request, HttpServletResponse response) {
+    public AuthDto.AuthResponse login(AuthDto.LoginRequest request, String clientHeader, HttpServletResponse response) {
         User user = userRepository.findByEmail(request.getEmail().toLowerCase())
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверная почта или пароль"));
 
@@ -46,21 +42,14 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Неверная почта или пароль");
         }
 
-        String accessToken = tokenProvider.generateAccessToken(user.getId(), user.getEmail());
-        String refreshToken = tokenProvider.generateRefreshToken(user.getId());
-        setRefreshTokenCookie(response, refreshToken);
-
-        return new AuthDto.AuthResponse(accessToken, user);
+        return createAuthResponse(user, clientHeader, response);
     }
 
     @Transactional
-    public AuthDto.AuthResponse googleLogin(AuthDto.GoogleLoginRequest request, HttpServletResponse response) {
-        // Mock / Parse Google token: extract subject and email
-        // In hackathon / dev mode, we support standard JWT decoding or mock
+    public AuthDto.AuthResponse googleLogin(AuthDto.GoogleLoginRequest request, String clientHeader, HttpServletResponse response) {
         String googleEmail;
         String googleSub;
         try {
-            // If the token is a mock or JWT
             if (request.getIdToken().contains(".")) {
                 String[] parts = request.getIdToken().split("\\.");
                 String payload = new String(java.util.Base64.getUrlDecoder().decode(parts[1]));
@@ -91,11 +80,20 @@ public class AuthService {
                                 .build()
                 ));
 
-        String accessToken = tokenProvider.generateAccessToken(user.getId(), user.getEmail());
-        String refreshToken = tokenProvider.generateRefreshToken(user.getId());
-        setRefreshTokenCookie(response, refreshToken);
+        return createAuthResponse(user, clientHeader, response);
+    }
 
-        return new AuthDto.AuthResponse(accessToken, user);
+    @Transactional(readOnly = true)
+    public AuthDto.AuthResponse refresh(String refreshToken, String clientHeader, HttpServletResponse response) {
+        if (refreshToken == null || !tokenProvider.validateToken(refreshToken)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Недействительный или истекший refresh-токен");
+        }
+
+        Long userId = tokenProvider.getUserIdFromToken(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Пользователь не найден"));
+
+        return createAuthResponse(user, clientHeader, response);
     }
 
     public void logout(HttpServletResponse response) {
@@ -105,6 +103,21 @@ public class AuthService {
         cookie.setPath("/");
         cookie.setMaxAge(0);
         response.addCookie(cookie);
+    }
+
+    private AuthDto.AuthResponse createAuthResponse(User user, String clientHeader, HttpServletResponse response) {
+        String accessToken = tokenProvider.generateAccessToken(user.getId(), user.getEmail());
+        String refreshToken = tokenProvider.generateRefreshToken(user.getId());
+
+        boolean isMobile = "mobile".equalsIgnoreCase(clientHeader);
+        if (isMobile) {
+            // For mobile clients, return refreshToken directly in response body
+            return new AuthDto.AuthResponse(accessToken, refreshToken, user);
+        } else {
+            // For web clients, save refresh token in httpOnly cookie
+            setRefreshTokenCookie(response, refreshToken);
+            return new AuthDto.AuthResponse(accessToken, user);
+        }
     }
 
     private void setRefreshTokenCookie(HttpServletResponse response, String refreshToken) {

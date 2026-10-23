@@ -35,5 +35,14 @@ Thumbs.db
 
 # Archive files
 contentpilot-kit.zip
-
 contentpilot-android-kit.zip
+
+# Mobile / Flutter
+mobile/.dart_tool/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/build/
+mobile/.pub/
+mobile/.pub-cache/
+
