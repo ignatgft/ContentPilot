@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../models/post_models.dart';
 import '../../providers/campaign_provider.dart';
+import '../../providers/brand_provider.dart';
 import '../../theme/app_theme.dart';
 import '../../theme/app_icons.dart';
 
@@ -16,17 +17,36 @@ class GeneratorScreen extends ConsumerStatefulWidget {
 
 class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
   final TextEditingController _promptController =
-      TextEditingController(text: 'Продвинуть сезонный латте Тыква-Пряности');
+      TextEditingController(text: 'Продвинуть специальное предложение');
   final Set<String> _selectedPlatforms = {'TELEGRAM', 'VK', 'INSTAGRAM'};
   String _selectedTone = 'Дружелюбный';
 
   final List<String> _presetIdeas = [
-    '☕ Сезонный латте Тыква-Пряности',
-    '🥐 Завтраки со свежими круассанами',
-    '🌱 100% арабика спешелти обжарки',
-    '🎉 Анонс субботнего каппинга со скидкой 20%',
-    '⭐ Отзыв гостя и секрет нашего бариста',
+    '☕ Сезонная новинка меню',
+    '🥐 Фирменное специальное предложение',
+    '🌱 100% натуральные ингредиенты',
+    '🎉 Анонс выходного дня со скидкой',
+    '⭐ Отзыв гостя и секрет нашего мастерства',
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final brandState = ref.read(brandProvider);
+      if (brandState.brand != null) {
+        final brand = brandState.brand!;
+        if (brand.facts != null && brand.facts!['menu'] is List && (brand.facts!['menu'] as List).isNotEmpty) {
+          final firstItem = (brand.facts!['menu'] as List).first;
+          if (firstItem is Map && firstItem['name'] != null) {
+            _promptController.text = 'Продвинуть ${firstItem['name']}';
+          }
+        } else if (brand.name.isNotEmpty) {
+          _promptController.text = 'Привлечь новых клиентов в ${brand.name}';
+        }
+      }
+    });
+  }
 
   final List<String> _tones = [
     'Дружелюбный',

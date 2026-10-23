@@ -35,12 +35,19 @@ public class CreativeStudioService {
     private final PostRepository postRepository;
 
     private final OpenAiImageProvider openAiImageProvider;
+    private final ComfyUiImageProvider comfyUiImageProvider;
     private final FallbackImageProvider fallbackImageProvider;
     private final FfmpegVideoProvider ffmpegVideoProvider;
     private final CreativeOverlayRenderer overlayRenderer;
 
     @Value("${app.creative.storage-dir:./uploads/creative}")
     private String storageDir;
+
+    @Value("${app.ai.image-provider:fallback}")
+    private String configuredImageProvider;
+
+    @Value("${app.demo-mode-enabled:false}")
+    private boolean demoModeEnabled;
 
     private Brand resolveUserBrand(User user, Long brandId) {
         if (brandId != null) {
@@ -67,11 +74,34 @@ public class CreativeStudioService {
         Brand brand = resolveUserBrand(user, brandId);
         ensureStorageDir();
 
+        ImageGenerationProvider chosenProvider;
+        String target = configuredImageProvider != null ? configuredImageProvider.trim().toLowerCase() : "fallback";
+
+        if ("comfyui".equals(target)) {
+            if (comfyUiImageProvider.isAvailable()) {
+                chosenProvider = comfyUiImageProvider;
+            } else if (!demoModeEnabled) {
+                throw new IllegalStateException("ComfyUI сервер недоступен по указанному COMFYUI_BASE_URL. Включите DEMO_MODE_ENABLED=true для презентационного режима.");
+            } else {
+                chosenProvider = fallbackImageProvider;
+            }
+        } else if ("openai".equals(target) || "dalle".equals(target)) {
+            if (openAiImageProvider.isAvailable()) {
+                chosenProvider = openAiImageProvider;
+            } else if (!demoModeEnabled) {
+                throw new IllegalStateException("OpenAI API ключ не настроен. Укажите OPENAI_API_KEY в переменных окружения.");
+            } else {
+                chosenProvider = fallbackImageProvider;
+            }
+        } else {
+            chosenProvider = fallbackImageProvider;
+        }
+
         CreativeTask task = CreativeTask.builder()
                 .brand(brand)
                 .user(user)
                 .type(CreativeType.IMAGE)
-                .provider(openAiImageProvider.isAvailable() ? openAiImageProvider.getProviderName() : fallbackImageProvider.getProviderName())
+                .provider(chosenProvider.getProviderName())
                 .model("commercial-v1")
                 .prompt(request.getPrompt() != null ? request.getPrompt() : "Рекламный визуал продукта")
                 .aspectRatio(request.getAspectRatio() != null ? request.getAspectRatio() : "1:1")
@@ -93,17 +123,7 @@ public class CreativeStudioService {
                     .referenceImageUrl(request.getReferenceImageUrl())
                     .build();
 
-            ImageGenerationResult genResult;
-            if (openAiImageProvider.isAvailable()) {
-                try {
-                    genResult = openAiImageProvider.generateImage(genReq);
-                } catch (Exception e) {
-                    log.warn("OpenAI image generation failed, falling back to builtin engine: {}", e.getMessage());
-                    genResult = fallbackImageProvider.generateImage(genReq);
-                }
-            } else {
-                genResult = fallbackImageProvider.generateImage(genReq);
-            }
+            ImageGenerationResult genResult = chosenProvider.generateImage(genReq);
 
             byte[] imageBytes = genResult.getImageBytes();
 
@@ -263,9 +283,14 @@ public class CreativeStudioService {
     }
 
     @Transactional(readOnly = true)
-    public CreativeDto.CreativeTaskResponse getTaskStatus(Long taskId) {
+    public CreativeDto.CreativeTaskResponse getTaskStatus(User user, Long taskId) {
         CreativeTask task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new IllegalArgumentException("Задача не найдена с ID: " + taskId));
+        if (user != null && task.getUser() != null && !task.getUser().getId().equals(user.getId())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Нет доступа к чужой задаче генерации"
+            );
+        }
         return toTaskResponse(task);
     }
 

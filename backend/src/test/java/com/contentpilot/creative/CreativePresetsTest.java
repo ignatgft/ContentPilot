@@ -10,7 +10,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 class CreativePresetsTest {
 
     private final CreativeStudioService service = new CreativeStudioService(
-            null, null, null, null, null, null, null, null, null
+            null, null, null, null, null, null, null, null, null, null
     );
 
     @Test

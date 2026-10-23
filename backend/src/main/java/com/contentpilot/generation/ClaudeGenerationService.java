@@ -1,14 +1,12 @@
 package com.contentpilot.generation;
 
 import com.contentpilot.brand.Brand;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Builder;
 import lombok.Data;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
@@ -16,14 +14,35 @@ import java.util.*;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ClaudeGenerationService {
 
-    private final RestClient restClient;
-    private final ObjectMapper objectMapper;
+    private final List<TextGenerationProvider> providers;
+    private final FallbackTextProvider fallbackProvider;
 
-    @Value("${app.claude.api-key:}")
-    private String claudeApiKey;
+    @Value("${app.ai.text-provider:gemini}")
+    private String configuredProviderName;
+
+    @Value("${app.demo-mode-enabled:false}")
+    private boolean demoModeEnabled;
+
+    @Autowired
+    public ClaudeGenerationService(List<TextGenerationProvider> providers, FallbackTextProvider fallbackProvider) {
+        this.providers = providers;
+        this.fallbackProvider = fallbackProvider;
+    }
+
+    // Secondary constructor for standalone testing
+    public ClaudeGenerationService(RestClient restClient, ObjectMapper objectMapper) {
+        this.fallbackProvider = new FallbackTextProvider(objectMapper);
+        this.providers = List.of(
+                new ClaudeTextProvider(restClient, objectMapper),
+                new GeminiTextProvider(restClient, objectMapper),
+                new OllamaTextProvider(restClient, objectMapper),
+                this.fallbackProvider
+        );
+        this.configuredProviderName = "fallback";
+        this.demoModeEnabled = true;
+    }
 
     @Data
     @Builder
@@ -35,196 +54,46 @@ public class ClaudeGenerationService {
     }
 
     public List<GeneratedPost> generateCampaignPosts(Brand brand, String goal, int durationDays) {
-        if (claudeApiKey != null && !claudeApiKey.isBlank() && !claudeApiKey.startsWith("your-")) {
+        String targetProvider = configuredProviderName != null ? configuredProviderName.trim().toLowerCase() : "gemini";
+
+        TextGenerationProvider selected = providers.stream()
+                .filter(p -> p.getProviderName().equalsIgnoreCase(targetProvider))
+                .findFirst()
+                .orElse(null);
+
+        if (selected != null && selected.isAvailable()) {
             try {
-                return callClaudeApi(brand, goal, durationDays);
+                log.info("Generating campaign via primary AI text provider: {}", selected.getProviderName());
+                return selected.generateCampaignPosts(brand, goal, durationDays);
             } catch (Exception e) {
-                log.warn("Failed to generate campaign via Claude API, falling back to built-in generator: {}", e.getMessage());
-            }
-        }
-        return generateFallbackPosts(brand, goal, durationDays);
-    }
-
-    private List<GeneratedPost> callClaudeApi(Brand brand, String goal, int durationDays) throws Exception {
-        String systemPrompt = """
-                Ты — экспертный ИИ-маркетолог для малого бизнеса (кофейни и локальные бренды).
-                Сгенерируй маркетинговую кампанию на основе профиля бренда и заданной цели.
-                Твой ответ ДОЛЖЕН быть строго валидным JSON-массивом объектов без лишней разметки:
-                [
-                  {
-                    "platform": "TELEGRAM",
-                    "text": "Текст публикации...",
-                    "dayOffset": 0
-                  }
-                ]
-                Включи 4-5 постов для площадок TELEGRAM, VK, INSTAGRAM.
-                Один из постов (например для VK) сделай с описанием сезонного напитка.
-                """;
-
-        String userPrompt = String.format("""
-                Бренд: %s
-                Описание: %s
-                Аудитория: %s
-                Тональность: %s
-                Факты и меню: %s
-                Цель кампании: %s
-                Срок: %d дней
-                """,
-                brand.getName(),
-                brand.getDescription(),
-                brand.getAudience(),
-                brand.getTone(),
-                brand.getFacts(),
-                goal,
-                durationDays
-        );
-
-        Map<String, Object> body = Map.of(
-                "model", "claude-3-5-sonnet-20241022",
-                "max_tokens", 2048,
-                "system", systemPrompt,
-                "messages", List.of(
-                        Map.of("role", "user", "content", userPrompt)
-                )
-        );
-
-        String responseJson = restClient.post()
-                .uri("https://api.anthropic.com/v1/messages")
-                .header("x-api-key", claudeApiKey)
-                .header("anthropic-version", "2023-06-01")
-                .contentType(MediaType.APPLICATION_JSON)
-                .body(body)
-                .retrieve()
-                .body(String.class);
-
-        JsonNode root = objectMapper.readTree(responseJson);
-        String textContent = root.path("content").get(0).path("text").asText();
-
-        // Extract JSON array from response
-        int start = textContent.indexOf('[');
-        int end = textContent.lastIndexOf(']');
-        if (start != -1 && end != -1) {
-            String arrayJson = textContent.substring(start, end + 1);
-            JsonNode arrayNode = objectMapper.readTree(arrayJson);
-            List<GeneratedPost> posts = new ArrayList<>();
-            for (JsonNode item : arrayNode) {
-                posts.add(GeneratedPost.builder()
-                        .platform(item.path("platform").asText("TELEGRAM"))
-                        .text(item.path("text").asText())
-                        .dayOffset(item.path("dayOffset").asInt(0))
-                        .build());
-            }
-            if (!posts.isEmpty()) {
-                return posts;
-            }
-        }
-        return generateFallbackPosts(brand, goal, durationDays);
-    }
-
-    private List<GeneratedPost> generateFallbackPosts(Brand brand, String goal, int durationDays) {
-        String brandName = (brand.getName() != null && !brand.getName().isBlank()) ? brand.getName() : "Наш Бренд";
-        String tone = (brand.getTone() != null && !brand.getTone().isBlank()) ? brand.getTone() : "Дружелюбный и вдохновляющий";
-        String schedule = "ежедневно с 08:00 до 22:00";
-        String address = "";
-
-        // Parse menu and facts dynamically from Brand Memory
-        Map<String, Integer> menu = new LinkedHashMap<>();
-        try {
-            if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
-                JsonNode factsNode = objectMapper.readTree(brand.getFacts());
-                if (factsNode.has("schedule")) {
-                    schedule = factsNode.path("schedule").asText(schedule);
+                log.warn("Primary AI provider '{}' failed: {}. Evaluating fallback...", selected.getProviderName(), e.getMessage());
+                if (!demoModeEnabled) {
+                    throw new IllegalStateException("Ошибка генерации AI через '" + selected.getProviderName() + "': " + e.getMessage(), e);
                 }
-                if (factsNode.has("address")) {
-                    address = factsNode.path("address").asText("");
-                }
-
-                JsonNode menuNode = factsNode.path("menu");
-                if (menuNode.isArray()) {
-                    for (JsonNode item : menuNode) {
-                        String name = item.path("name").asText("");
-                        int price = item.path("price").asInt(0);
-                        if (!name.isBlank() && price > 0) {
-                            menu.put(name, price);
-                        }
-                    }
-                } else if (menuNode.isObject()) {
-                    menuNode.fields().forEachRemaining(entry -> {
-                        menu.put(entry.getKey(), entry.getValue().asInt(0));
-                    });
-                }
-            }
-        } catch (Exception e) {
-            log.warn("Failed to parse brand facts in fallback generation: {}", e.getMessage());
-        }
-
-        // Determine primary and secondary product
-        String primaryProduct = "Фирменное предложение";
-        int primaryPrice = 300;
-        String secondaryProduct = "Популярная позиция";
-        int secondaryPrice = 250;
-
-        if (!menu.isEmpty()) {
-            List<Map.Entry<String, Integer>> entries = new ArrayList<>(menu.entrySet());
-            // Check if goal mentions any menu item
-            if (goal != null) {
-                String goalLower = goal.toLowerCase();
-                for (Map.Entry<String, Integer> entry : entries) {
-                    if (goalLower.contains(entry.getKey().toLowerCase())) {
-                        primaryProduct = entry.getKey();
-                        primaryPrice = entry.getValue();
-                        break;
-                    }
-                }
-            }
-            if (primaryProduct.equals("Фирменное предложение")) {
-                primaryProduct = entries.get(0).getKey();
-                primaryPrice = entries.get(0).getValue();
-            }
-            if (entries.size() > 1) {
-                secondaryProduct = entries.get(1).getKey();
-                secondaryPrice = entries.get(1).getValue();
-            } else {
-                secondaryProduct = primaryProduct;
-                secondaryPrice = primaryPrice;
             }
         }
 
-        String locationInfo = address.isBlank() ? "Ждём вас в гости!" : "Ждём вас по адресу: " + address + "!";
-        List<GeneratedPost> posts = new ArrayList<>();
+        // Try any other available cloud provider before fallback
+        for (TextGenerationProvider provider : providers) {
+            if (!provider.getProviderName().equalsIgnoreCase("fallback") && provider.isAvailable()) {
+                try {
+                    log.info("Attempting backup available provider: {}", provider.getProviderName());
+                    return provider.generateCampaignPosts(brand, goal, durationDays);
+                } catch (Exception e) {
+                    log.warn("Backup provider '{}' also failed: {}", provider.getProviderName(), e.getMessage());
+                }
+            }
+        }
 
-        // Post 1: Telegram — Главный анонс и УТП
-        posts.add(GeneratedPost.builder()
-                .platform("TELEGRAM")
-                .text(String.format("✨ Приветствуем в %s!\n\nИщете идеальный способ поднять настроение и зарядиться энергией? Попробуйте наше фирменное блюдо — %s по цене всего %d ₽!\n\n%s График работы: %s. Приходите в гости или оформляйте предзаказ! ☕💫",
-                        brandName, primaryProduct, primaryPrice, locationInfo, schedule))
-                .dayOffset(0)
-                .build());
+        // Check demo mode permission for fallback
+        if (demoModeEnabled || "fallback".equalsIgnoreCase(targetProvider)) {
+            log.info("Using Brand Memory generator in demo mode (DEMO_MODE_ENABLED=true)");
+            return fallbackProvider.generateCampaignPosts(brand, goal, durationDays);
+        }
 
-        // Post 2: VK — Экспертный бэкстейдж и качество ингредиентов
-        posts.add(GeneratedPost.builder()
-                .platform("VK")
-                .text(String.format("Как в %s создается настоящий вкус?\n\nМы отбираем только свежие натуральные ингредиенты высшего качества. Наш фаворит среди гостей — %s всего за %d ₽. Идеально сбалансированный вкус и премиальная подача.\n\nЗаглядывайте попробовать сегодня! #%s #гастрономия #свежийвкус",
-                        brandName, primaryProduct, primaryPrice, brandName.replaceAll("\\s+", "_").toLowerCase()))
-                .dayOffset(2)
-                .build());
-
-        // Post 3: Telegram — Специальное предложение / Комбо дня
-        posts.add(GeneratedPost.builder()
-                .platform("TELEGRAM")
-                .text(String.format("🔥 Специальное предложение в %s!\n\nСделайте перерыв на обед особенным: попробуйте %s (%d ₽) или побалуйте себя %s (%d ₽). Отличный повод встретиться с коллегами и друзьями!\n\n%s",
-                        brandName, primaryProduct, primaryPrice, secondaryProduct, secondaryPrice, locationInfo))
-                .dayOffset(4)
-                .build());
-
-        // Post 4: Instagram — Вовлечение и планы на выходные
-        posts.add(GeneratedPost.builder()
-                .platform("INSTAGRAM")
-                .text(String.format("Идеальный день начинается с маленьких удовольствий в %s ✨ Насладитесь уютной атмосферой и попробуйте %s (%d ₽). А как вы планируете провести эти дни? Делитесь в комментариях! 👇✨ #%s #weekend #lifestyle",
-                        brandName, primaryProduct, primaryPrice, brandName.replaceAll("\\s+", "_").toLowerCase()))
-                .dayOffset(6)
-                .build());
-
-        return posts;
+        throw new IllegalStateException(String.format(
+                "AI-провайдер '%s' не настроен или недоступен. Укажите API-ключ в переменных окружения (GEMINI_API_KEY, CLAUDE_API_KEY) или включите DEMO_MODE_ENABLED=true для презентационного режима.",
+                targetProvider
+        ));
     }
 }

@@ -2,9 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
-  static const String tunnelBaseUrl = 'https://allows-thread-dedicated-screening.trycloudflare.com/api/v1';
-  static const String lanBaseUrl = 'http://192.168.10.181:8080/api/v1';
-  static const String emulatorBaseUrl = 'http://10.0.2.2:8080/api/v1';
+  static const String envBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '');
+  static const String defaultTunnelBaseUrl = 'https://allows-thread-dedicated-screening.trycloudflare.com/api/v1';
+  static const String defaultLanBaseUrl = 'http://192.168.10.181:8080/api/v1';
+  static const String defaultEmulatorBaseUrl = 'http://10.0.2.2:8080/api/v1';
 
   late Dio dio;
   final FlutterSecureStorage storage;
@@ -12,8 +13,25 @@ class ApiClient {
 
   ApiClient({String? baseUrl, FlutterSecureStorage? storageInstance})
       : storage = storageInstance ?? const FlutterSecureStorage(),
-        currentBaseUrl = baseUrl ?? tunnelBaseUrl {
+        currentBaseUrl = baseUrl ?? (envBaseUrl.isNotEmpty ? envBaseUrl : defaultTunnelBaseUrl) {
     _initDio();
+    _initCustomBaseUrl();
+  }
+
+  Future<void> _initCustomBaseUrl() async {
+    try {
+      final savedUrl = await storage.read(key: 'custom_base_url');
+      if (savedUrl != null && savedUrl.isNotEmpty) {
+        updateBaseUrl(savedUrl);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> saveAndApplyBaseUrl(String newBaseUrl) async {
+    updateBaseUrl(newBaseUrl);
+    try {
+      await storage.write(key: 'custom_base_url', value: newBaseUrl);
+    } catch (_) {}
   }
 
   void updateBaseUrl(String newBaseUrl) {

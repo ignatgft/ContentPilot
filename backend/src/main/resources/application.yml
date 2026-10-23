@@ -23,10 +23,21 @@ spring:
     locations: classpath:db/migration
 
 app:
+  demo-mode-enabled: ${DEMO_MODE_ENABLED:true}
   jwt:
     secret: ${JWT_SECRET:contentpilot-hackathon-super-secret-key-32bytes-min-len}
     access-token-expiration-ms: 900000 # 15 minutes
     refresh-token-expiration-ms: 604800000 # 7 days
+  ai:
+    text-provider: ${AI_TEXT_PROVIDER:gemini}
+    text-model: ${AI_TEXT_MODEL:gemini-2.5-flash}
+    gemini-api-key: ${GEMINI_API_KEY:}
+    claude-api-key: ${CLAUDE_API_KEY:}
+    ollama-base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+    ollama-model: ${OLLAMA_MODEL:llama3.2}
+    image-provider: ${AI_IMAGE_PROVIDER:fallback}
+    comfyui-base-url: ${COMFYUI_BASE_URL:http://comfyui:8188}
+    video-provider: ${AI_VIDEO_PROVIDER:ffmpeg-motion}
   claude:
     api-key: ${CLAUDE_API_KEY:}
   openai:

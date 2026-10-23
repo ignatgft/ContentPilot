@@ -34,8 +34,9 @@ public class CreativeStudioController {
 
     @GetMapping("/tasks/{id}")
     public ResponseEntity<CreativeDto.CreativeTaskResponse> getTaskStatus(
+            @AuthenticationPrincipal User user,
             @PathVariable Long id) {
-        return ResponseEntity.ok(creativeStudioService.getTaskStatus(id));
+        return ResponseEntity.ok(creativeStudioService.getTaskStatus(user, id));
     }
 
     @GetMapping("/media")
