@@ -6,7 +6,6 @@ import com.contentpilot.generation.ClaudeGenerationService;
 import com.contentpilot.post.Post;
 import com.contentpilot.post.PostDto;
 import com.contentpilot.post.PostRepository;
-import com.contentpilot.verification.VerificationResult;
 import com.contentpilot.verification.VerificationService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -18,7 +17,6 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -53,7 +51,6 @@ public class CampaignService {
         // Generate posts
         List<ClaudeGenerationService.GeneratedPost> generatedPosts = generationService.generateCampaignPosts(brand, request.getGoal(), duration);
 
-        List<Post> savedPosts = new ArrayList<>();
         for (ClaudeGenerationService.GeneratedPost gen : generatedPosts) {
             OffsetDateTime postTime = start.plusDays(gen.getDayOffset()).atTime(10, 0).atOffset(ZoneOffset.UTC);
 
@@ -68,10 +65,9 @@ public class CampaignService {
 
             post = postRepository.save(post);
             verificationService.verifyPost(post);
-            savedPosts.add(post);
+            campaign.getPosts().add(post);
         }
 
-        campaign.setPosts(savedPosts);
         return toDto(campaign);
     }
 
