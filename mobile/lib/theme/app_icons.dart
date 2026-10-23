@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class AppIcons {
@@ -50,6 +50,24 @@ class AppIcons {
   static const users = 'assets/icons/users.svg';
   static const video = 'assets/icons/video.svg';
   static const x = 'assets/icons/x.svg';
+
+  // Platforms
+  static const telegram = 'assets/platforms/telegram.svg';
+  static const vk = 'assets/platforms/vk.svg';
+  static const instagram = 'assets/platforms/instagram.svg';
+  static const youtube = 'assets/platforms/youtube.svg';
+  static const tiktok = 'assets/platforms/tiktok.svg';
+
+  // Logos
+  static const markLight = 'assets/logo/mark-light.svg';
+  static const markDark = 'assets/logo/mark-dark.svg';
+  static const wordmarkLight = 'assets/logo/wordmark-light.svg';
+  static const wordmarkDark = 'assets/logo/wordmark-dark.svg';
+
+  // Avatars
+  static const avatarAi = 'assets/avatars/ai-agent.svg';
+  static const avatarOwner = 'assets/avatars/owner.svg';
+  static const avatarSmm = 'assets/avatars/smm.svg';
 }
 
 /// Иконка из дизайн-кита. Цвет задаётся как у текста (currentColor).
@@ -63,5 +81,43 @@ class AppIcon extends StatelessWidget {
   Widget build(BuildContext context) {
     final c = color ?? DefaultTextStyle.of(context).style.color ?? const Color(0xFF14172B);
     return SvgPicture.asset(path, width: size, height: size, colorFilter: ColorFilter.mode(c, BlendMode.srcIn));
+  }
+}
+
+/// Цветная иконка платформы (Telegram, VK, Instagram, YouTube, TikTok)
+class PlatformIcon extends StatelessWidget {
+  final String platform;
+  final double size;
+
+  const PlatformIcon(this.platform, {super.key, this.size = 24});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = platform.toUpperCase();
+    String assetPath;
+    switch (p) {
+      case 'TELEGRAM':
+        assetPath = AppIcons.telegram;
+        break;
+      case 'VK':
+        assetPath = AppIcons.vk;
+        break;
+      case 'INSTAGRAM':
+        assetPath = AppIcons.instagram;
+        break;
+      case 'YOUTUBE':
+        assetPath = AppIcons.youtube;
+        break;
+      case 'TIKTOK':
+        assetPath = AppIcons.tiktok;
+        break;
+      default:
+        return Icon(Icons.share, size: size);
+    }
+    return SvgPicture.asset(
+      assetPath,
+      width: size,
+      height: size,
+    );
   }
 }

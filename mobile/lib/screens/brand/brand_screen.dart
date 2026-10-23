@@ -121,223 +121,232 @@ class _BrandScreenState extends ConsumerState<BrandScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Quick Demo 3-min Fill button
-            Card(
+            // Quick Demo 3-min Fill button (Pro Max)
+            CpCard(
               color: colors.chipBg,
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.flash_on, color: Colors.amber, size: 22),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Демо-сценарий (3 минуты)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            color: colors.chipText,
-                          ),
+              border: Border.all(color: colors.accent.withOpacity(0.2)),
+              borderRadius: 20,
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.2),
+                          borderRadius: BorderRadius.circular(8),
                         ),
+                        child: const Icon(Icons.flash_on, color: Colors.amber, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Быстрый демо-сценарий (3 минуты)',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: colors.chipText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Заполняет проверенные данные кофейни «Зёрна и Истории»: меню, цены, адрес и часы работы.',
+                    style: TextStyle(fontSize: 12, color: colors.muted, height: 1.35),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.accent,
+                      minimumSize: const Size.fromHeight(42),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    icon: const Icon(Icons.coffee_rounded, size: 18),
+                    label: const Text('Заполнить кофейню для демо (3 мин)', style: TextStyle(fontWeight: FontWeight.w700)),
+                    onPressed: _loadDemoPreset,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Main Brand Fields Card (Pro Max)
+            CpCard(
+              borderRadius: 20,
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Основные сведения о бизнесе',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: colors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Название бренда *',
+                      hintText: 'Кофейня "Зёрна и Истории"',
+                    ),
+                    validator: (v) => v == null || v.trim().isEmpty ? 'Введите название бренда' : null,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _descController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Описание бизнеса',
+                      hintText: 'Уютная спешелти кофейня в центре города...',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _audienceController,
+                    maxLines: 2,
+                    decoration: const InputDecoration(
+                      labelText: 'Целевая аудитория',
+                      hintText: 'Студенты, фрилансеры, любители спешелти кофе...',
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _toneController,
+                    decoration: const InputDecoration(
+                      labelText: 'Тон общения (Tone of Voice)',
+                      hintText: 'Дружелюбный, тёплый, экспертный',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Facts & Pricing Memory Card (Pro Max)
+            CpCard(
+              borderRadius: 20,
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: colors.accent.withOpacity(0.12),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.fact_check_outlined, color: colors.accent, size: 20),
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        'Память фактов и цен (база знаний)',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: colors.ink,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    'ИИ сверяет цены и факты в сгенерированных постах с этими данными для предотвращения галлюцинаций.',
+                    style: TextStyle(fontSize: 12, color: colors.muted, height: 1.35),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _addressController,
+                    decoration: const InputDecoration(
+                      labelText: 'Адрес',
+                      hintText: 'ул. Ленина, д. 42',
+                      prefixIcon: Icon(Icons.location_on_outlined),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: _hoursController,
+                    decoration: const InputDecoration(
+                      labelText: 'Часы работы',
+                      hintText: '08:00 - 22:00',
+                      prefixIcon: Icon(Icons.access_time),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: colors.chipBg,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Зафиксированное меню и цены:',
+                          style: TextStyle(fontWeight: FontWeight.w800, fontSize: 13, color: colors.chipText),
+                        ),
+                        const SizedBox(height: 6),
+                        const Text('• Сезонный латте Тыква-Пряности: 320₽', style: TextStyle(fontSize: 13)),
+                        const Text('• Капучино: 250₽', style: TextStyle(fontSize: 13)),
+                        const Text('• Флэт уайт: 280₽', style: TextStyle(fontSize: 13)),
+                        const Text('• Круассан с миндалем: 190₽', style: TextStyle(fontSize: 13)),
                       ],
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Заполняет проверенные данные кофейни «Зёрна и Истории»: меню, цены, адрес и часы работы.',
-                      style: TextStyle(fontSize: 12, color: colors.muted),
-                    ),
-                    const SizedBox(height: 10),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.accent,
-                        minimumSize: const Size.fromHeight(38),
-                      ),
-                      icon: const Icon(Icons.coffee, size: 18),
-                      label: const Text('Заполнить кофейню для демо (3 мин)'),
-                      onPressed: _loadDemoPreset,
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 16),
 
-            // Main Brand Fields Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Основные сведения о бизнесе',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                        color: colors.ink,
-                      ),
+            // Autonomy Mode (Pro Max)
+            CpCard(
+              borderRadius: 20,
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Режим автономности публикации',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      color: colors.ink,
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: _nameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Название бренда *',
-                        hintText: 'Кофейня "Зёрна и Истории"',
-                      ),
-                      validator: (v) => v == null || v.trim().isEmpty ? 'Введите название бренда' : null,
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _descController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Описание бизнеса',
-                        hintText: 'Уютная спешелти кофейня в центре города...',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _audienceController,
-                      maxLines: 2,
-                      decoration: const InputDecoration(
-                        labelText: 'Целевая аудитория',
-                        hintText: 'Студенты, фрилансеры, любители спешелти кофе...',
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _toneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Тон общения (Tone of Voice)',
-                        hintText: 'Дружелюбный, тёплый, экспертный',
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Facts & Pricing Memory Card
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.fact_check_outlined, color: colors.accent, size: 20),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Память фактов и цен (для фактчекинга)',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                            color: colors.ink,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'ИИ строго сверяет цены и факты в сгенерированных постах с этими данными.',
-                      style: TextStyle(fontSize: 12, color: colors.muted),
-                    ),
-                    const SizedBox(height: 14),
-                    TextFormField(
-                      controller: _addressController,
-                      decoration: const InputDecoration(
-                        labelText: 'Адрес',
-                        hintText: 'ул. Ленина, д. 42',
-                        prefixIcon: Icon(Icons.location_on_outlined),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _hoursController,
-                      decoration: const InputDecoration(
-                        labelText: 'Часы работы',
-                        hintText: '08:00 - 22:00',
-                        prefixIcon: Icon(Icons.access_time),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: colors.chipBg,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Фиксированное меню и цены:',
-                            style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: colors.chipText),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text('• Сезонный латте Тыква-Пряности: 320₽'),
-                          const Text('• Капучино: 250₽'),
-                          const Text('• Флэт уайт: 280₽'),
-                          const Text('• Круассан с миндалем: 190₽'),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Autonomy Mode
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Режим автономности публикации',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: colors.ink,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    RadioListTile<String>(
-                      title: const Text('Копилот (Copilot)', style: TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: const Text('Публикация требует подтверждения пользователем'),
-                      value: 'COPILOT',
-                      groupValue: _autonomyMode,
-                      onChanged: (val) => setState(() => _autonomyMode = val!),
-                    ),
-                    RadioListTile<String>(
-                      title: const Text('Автопилот (Autopilot)', style: TextStyle(fontWeight: FontWeight.w700)),
-                      subtitle: const Text('Автоматическая публикация постов без ошибок'),
-                      value: 'AUTOPILOT',
-                      groupValue: _autonomyMode,
-                      onChanged: (val) => setState(() => _autonomyMode = val!),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 10),
+                  RadioListTile<String>(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    title: const Text('Копилот (Copilot)', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Публикация требует подтверждения человеком'),
+                    value: 'COPILOT',
+                    groupValue: _autonomyMode,
+                    onChanged: (val) => setState(() => _autonomyMode = val!),
+                  ),
+                  RadioListTile<String>(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    title: const Text('Автопилот (Autopilot)', style: TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: const Text('Автоматическая публикация постов без ошибок'),
+                    value: 'AUTOPILOT',
+                    groupValue: _autonomyMode,
+                    onChanged: (val) => setState(() => _autonomyMode = val!),
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 20),
 
-            // Save Button
-            FilledButton.icon(
-              icon: state.isLoading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                    )
-                  : const Icon(Icons.save_outlined),
-              label: Text(state.isLoading ? 'Сохранение...' : 'Сохранить профиль бренда'),
+            // Save Button (Pro Max)
+            CpGradientButton(
+              text: state.isLoading ? 'Сохранение...' : 'Сохранить профиль бренда',
+              icon: Icons.save_outlined,
+              isLoading: state.isLoading,
               onPressed: state.isLoading ? null : _save,
             ),
           ],

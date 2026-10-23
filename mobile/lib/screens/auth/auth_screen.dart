@@ -45,12 +45,13 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     }
   }
 
-  void _fillDemoUser() {
+  void _fillDemoUserAndLogin() {
     setState(() {
       _isLogin = true;
       _emailController.text = 'demo@contentpilot.app';
       _passwordController.text = 'Password123!';
     });
+    _submit();
   }
 
   void _showChangeServerDialog() {
@@ -60,15 +61,36 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Адрес сервера бэкенда'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Адрес сервера бэкенда', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 17)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Укажите IP-адрес компьютера в локальной Wi-Fi сети:',
-              style: TextStyle(fontSize: 13),
+              'Выберите пресет или укажите свой адрес API:',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                ActionChip(
+                  label: const Text('Cloudflare Tunnel', style: TextStyle(fontSize: 11)),
+                  onPressed: () => urlController.text = 'https://allows-thread-dedicated-screening.trycloudflare.com/api/v1',
+                ),
+                ActionChip(
+                  label: const Text('Локальная сеть (Wi-Fi)', style: TextStyle(fontSize: 11)),
+                  onPressed: () => urlController.text = 'http://192.168.10.181:8080/api/v1',
+                ),
+                ActionChip(
+                  label: const Text('Эмулятор Android', style: TextStyle(fontSize: 11)),
+                  onPressed: () => urlController.text = 'http://10.0.2.2:8080/api/v1',
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: urlController,
               decoration: const InputDecoration(labelText: 'URL бэкенда'),
@@ -86,7 +108,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               Navigator.pop(ctx);
               setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Сервер: ${client.currentBaseUrl}')),
+                SnackBar(
+                  behavior: SnackBarBehavior.floating,
+                  content: Text('Сервер: ${client.currentBaseUrl}'),
+                ),
               );
             },
             child: const Text('Сохранить'),
@@ -316,32 +341,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Submit Button
-                  FilledButton(
+                  // Submit Button (Pro Max)
+                  CpGradientButton(
+                    text: _isLogin ? 'Войти в ContentPilot' : 'Создать аккаунт',
+                    isLoading: authState.isLoading,
                     onPressed: authState.isLoading ? null : _submit,
-                    child: authState.isLoading
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : Text(_isLogin ? 'Войти в ContentPilot' : 'Создать аккаунт'),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 14),
 
                   // Google Login Button
                   OutlinedButton.icon(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      backgroundColor: isDark ? const Color(0xFF1F2438) : Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: isDark ? const Color(0xFF161F36) : Colors.white,
                       side: BorderSide(color: colors.border),
                     ),
                     icon: Container(
-                      width: 20,
-                      height: 20,
+                      width: 22,
+                      height: 22,
                       decoration: const BoxDecoration(
                         color: Colors.white,
                         shape: BoxShape.circle,
@@ -352,7 +369,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           style: TextStyle(
                             color: Color(0xFF4285F4),
                             fontWeight: FontWeight.w900,
-                            fontSize: 14,
+                            fontSize: 15,
                           ),
                         ),
                       ),
@@ -370,11 +387,18 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Quick Demo fill button
-                  OutlinedButton.icon(
-                    icon: const Icon(Icons.flash_on, color: Colors.amber, size: 18),
-                    label: const Text('Заполнить демо-аккаунт (1 клик)'),
-                    onPressed: _fillDemoUser,
+                  // Quick Demo 1-Click Login button
+                  FilledButton.tonalIcon(
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                    ),
+                    icon: const Icon(Icons.flash_on_rounded, color: Colors.amber, size: 20),
+                    label: const Text(
+                      'Вход в Демо-аккаунт (1 клик)',
+                      style: TextStyle(fontWeight: FontWeight.w800, fontSize: 14),
+                    ),
+                    onPressed: authState.isLoading ? null : _fillDemoUserAndLogin,
                   ),
                   const SizedBox(height: 16),
 

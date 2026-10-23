@@ -7,6 +7,7 @@ import '../../providers/campaign_provider.dart';
 import '../../providers/channel_provider.dart';
 import '../../providers/analytics_provider.dart';
 import '../../theme/app_theme.dart';
+import '../../theme/app_icons.dart';
 import '../autopilot/autopilot_dialog.dart';
 
 class DashboardScreen extends ConsumerWidget {
@@ -52,62 +53,60 @@ class DashboardScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Header: Greeting & Active Brand
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colors.accent,
-                    colors.accent.withOpacity(0.8),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: colors.accent.withOpacity(0.25),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
+            // Hero Banner: Gradient with AI Badge & Quick Autopilot Launch
+            CpCard(
+              gradient: CpColors.primaryGradient,
+              borderRadius: 22,
+              padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Привет, ${userEmail.split('@').first}!',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
+                      Expanded(
+                        child: Text(
+                          'Привет, ${userEmail.split('@').first}!',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: -0.3,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withOpacity(0.22),
                           borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: Colors.white.withOpacity(0.3)),
                         ),
-                        child: Text(
-                          brandState.brand?.autonomyMode ?? 'COPILOT',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w700,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.bolt, color: Colors.amberAccent, size: 14),
+                            const SizedBox(width: 4),
+                            Text(
+                              brandState.brand?.autonomyMode ?? 'COPILOT',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.storefront_outlined, color: Colors.white70, size: 16),
+                      const Icon(Icons.storefront, color: Colors.white70, size: 16),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
@@ -115,13 +114,56 @@ class DashboardScreen extends ConsumerWidget {
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 14,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.2),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: Colors.white, size: 18),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'AI готов сгенерировать контент-план на 7 дней',
+                            style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            showDialog(
+                              context: context,
+                              builder: (ctx) => const AutopilotDialog(),
+                            );
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Text(
+                              'Запуск',
+                              style: TextStyle(
+                                color: Color(0xFF4F46E5),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -130,53 +172,104 @@ class DashboardScreen extends ConsumerWidget {
 
             // If brand not created, show banner
             if (brandState.brand == null) ...[
-              Card(
+              CpCard(
                 color: colors.warning.withOpacity(0.1),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: colors.warning.withOpacity(0.4)),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Row(
-                    children: [
-                      Icon(Icons.lightbulb_outline, color: colors.warning, size: 28),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Настройте профиль бренда',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w700,
-                                color: colors.ink,
-                                fontSize: 14,
-                              ),
+                border: Border.all(color: colors.warning.withOpacity(0.4)),
+                padding: const EdgeInsets.all(14),
+                child: Row(
+                  children: [
+                    Icon(Icons.lightbulb_outline, color: colors.warning, size: 28),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Настройте профиль бренда',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              color: colors.ink,
+                              fontSize: 14,
                             ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Заполните меню, цены и график для точной генерации контента.',
-                              style: TextStyle(
-                                color: colors.muted,
-                                fontSize: 12,
-                              ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Укажите меню, цены и тон бренда для точной генерации контента.',
+                            style: TextStyle(
+                              color: colors.muted,
+                              fontSize: 12,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        onPressed: () => onTabChange(4), // Go to Brand Tab
-                        child: const Text('Заполнить'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.warning,
+                        minimumSize: const Size(80, 36),
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
-                    ],
-                  ),
+                      onPressed: () => onTabChange(4), // Go to Brand Tab
+                      child: const Text('Заполнить', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 16),
             ],
 
-            // Stats Row (Scheduled, Published, Needs Review)
+            // Quick Actions 4-Grid (Pro Max)
+            Row(
+              children: [
+                Expanded(
+                  child: _buildQuickActionCard(
+                    title: 'Создать',
+                    subtitle: 'AI пост',
+                    icon: AppIcons.sparkles,
+                    color: const Color(0xFF6366F1),
+                    onTap: () => onTabChange(2),
+                    colors: colors,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildQuickActionCard(
+                    title: 'План',
+                    subtitle: 'Календарь',
+                    icon: AppIcons.calendar,
+                    color: const Color(0xFF06B6D4),
+                    onTap: () => onTabChange(1),
+                    colors: colors,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildQuickActionCard(
+                    title: 'Соцсети',
+                    subtitle: 'Каналы',
+                    icon: AppIcons.share,
+                    color: const Color(0xFF10B981),
+                    onTap: () => onTabChange(3),
+                    colors: colors,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildQuickActionCard(
+                    title: 'Аналитика',
+                    subtitle: 'Охваты',
+                    icon: AppIcons.chart,
+                    color: const Color(0xFFF59E0B),
+                    onTap: () => onTabChange(5),
+                    colors: colors,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Metrics Cards Row
             Row(
               children: [
                 Expanded(
@@ -210,138 +303,130 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 20),
-
-            // Main Actions: Autopilot & Create Content
-            Row(
-              children: [
-                Expanded(
-                  flex: 6,
-                  child: FilledButton.icon(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: colors.accent,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    icon: const Icon(Icons.auto_awesome_rounded, size: 20),
-                    label: const Text(
-                      'Автопилот на неделю',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (ctx) => const AutopilotDialog(),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  flex: 4,
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    icon: const Icon(Icons.add, size: 20),
-                    label: const Text(
-                      'Создать',
-                      style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                    ),
-                    onPressed: () => onTabChange(2), // Generator Tab
-                  ),
-                ),
-              ],
-            ),
             const SizedBox(height: 24),
 
             // Next Scheduled Post Card
-            Text(
-              'Ближайшая публикация',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: colors.ink,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Ближайшая публикация',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: colors.ink,
+                  ),
+                ),
+                if (nextPost != null)
+                  TextButton(
+                    onPressed: () => onTabChange(1),
+                    child: const Text('Все в календаре', style: TextStyle(fontSize: 12)),
+                  ),
+              ],
             ),
             const SizedBox(height: 10),
             if (nextPost != null) ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              _buildPlatformBadge(nextPost.platform, colors),
-                              const SizedBox(width: 8),
-                              Text(
-                                nextPost.scheduledAt != null
-                                    ? DateFormat('dd MMM, HH:mm', 'ru').format(nextPost.scheduledAt!.toLocal())
-                                    : 'Запланировано',
-                                style: TextStyle(
-                                  color: colors.muted,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                          TextButton(
-                            style: TextButton.styleFrom(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                              minimumSize: Size.zero,
-                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            ),
-                            onPressed: () {
-                              ref.read(campaignProvider.notifier).publishNow(nextPost.id);
-                            },
-                            child: const Text('Опубликовать'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        nextPost.text,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: colors.ink,
-                          fontSize: 14,
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ] else ...[
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
-                  child: Center(
-                    child: Column(
+              CpCard(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Icon(Icons.event_available_outlined, color: colors.muted, size: 36),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Нет запланированных публикаций',
-                          style: TextStyle(
-                            color: colors.ink,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 14,
-                          ),
+                        Row(
+                          children: [
+                            PlatformIcon(nextPost.platform, size: 24),
+                            const SizedBox(width: 10),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  nextPost.platform.toUpperCase(),
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    color: colors.ink,
+                                  ),
+                                ),
+                                Row(
+                                  children: [
+                                    Icon(Icons.schedule, size: 12, color: colors.muted),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      nextPost.scheduledAt != null
+                                          ? DateFormat('dd MMMM, HH:mm', 'ru').format(nextPost.scheduledAt!.toLocal())
+                                          : 'Запланировано',
+                                      style: TextStyle(
+                                        color: colors.muted,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ],
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Запустите Автопилот, чтобы составить план на неделю.',
-                          style: TextStyle(color: colors.muted, fontSize: 12),
+                        FilledButton.tonal(
+                          style: FilledButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                          onPressed: () {
+                            ref.read(campaignProvider.notifier).publishNow(nextPost.id);
+                          },
+                          child: const Text('Опубликовать', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    Text(
+                      nextPost.text,
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: colors.ink,
+                        fontSize: 14,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
+              CpCard(
+                padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 16),
+                child: Center(
+                  child: Column(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: colors.chipBg,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(Icons.event_available_outlined, color: colors.accent, size: 28),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        'Нет запланированных публикаций',
+                        style: TextStyle(
+                          color: colors.ink,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Запустите Автопилот, чтобы составить контент-план на неделю.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: colors.muted, fontSize: 12),
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -353,7 +438,7 @@ class DashboardScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Площадки и каналы',
+                  'Площадки и соцсети',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -362,18 +447,18 @@ class DashboardScreen extends ConsumerWidget {
                 ),
                 TextButton(
                   onPressed: () => onTabChange(3), // Channels Tab
-                  child: const Text('Все каналы'),
+                  child: const Text('Настроить', style: TextStyle(fontSize: 12)),
                 ),
               ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             _buildChannelsRow(channelState, colors),
             const SizedBox(height: 24),
 
             // Quick Analytics Summary Card
             if (analyticsState.overview != null && analyticsState.overview!.hasData) ...[
               Text(
-                'Краткая аналитика',
+                'Сводка активности',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w800,
@@ -381,42 +466,40 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const SizedBox(height: 10),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
+              CpCard(
+                padding: const EdgeInsets.all(18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildMiniStat('Просмотры', '${analyticsState.overview!.totalViews}', colors),
+                        _buildMiniStat('Реакции', '${analyticsState.overview!.totalReactions}', colors),
+                        _buildMiniStat('Клики', '${analyticsState.overview!.totalClicks}', colors),
+                      ],
+                    ),
+                    if (analyticsState.overview!.summaryMessage.isNotEmpty) ...[
+                      const Divider(height: 24),
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildMiniStat('Просмотры', '${analyticsState.overview!.totalViews}', colors),
-                          _buildMiniStat('Реакции', '${analyticsState.overview!.totalReactions}', colors),
-                          _buildMiniStat('Клики', '${analyticsState.overview!.totalClicks}', colors),
-                        ],
-                      ),
-                      if (analyticsState.overview!.summaryMessage.isNotEmpty) ...[
-                        const Divider(height: 24),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Icon(Icons.insights_rounded, color: Colors.blueAccent, size: 18),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                analyticsState.overview!.summaryMessage,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  color: colors.muted,
-                                  height: 1.35,
-                                ),
+                          const Icon(Icons.insights_rounded, color: Colors.blueAccent, size: 18),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              analyticsState.overview!.summaryMessage,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: colors.muted,
+                                height: 1.35,
                               ),
                             ),
-                          ],
-                        ),
-                      ],
+                          ),
+                        ],
+                      ),
                     ],
-                  ),
+                  ],
                 ),
               ),
             ],
@@ -426,53 +509,85 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildMetricCard(BuildContext context, {required String title, required String value, required IconData icon, required Color color}) {
-    final colors = Theme.of(context).brightness == Brightness.dark ? CpColors.dark : CpColors.light;
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 6),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w900,
-                color: colors.ink,
-              ),
+  Widget _buildQuickActionCard({
+    required String title,
+    required String subtitle,
+    required String icon,
+    required Color color,
+    required VoidCallback onTap,
+    required CpColors colors,
+  }) {
+    return CpCard(
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
+      borderRadius: 16,
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(10),
             ),
-            const SizedBox(height: 2),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: colors.muted,
-              ),
+            child: AppIcon(icon, size: 20, color: color),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: colors.ink,
             ),
-          ],
-        ),
+          ),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w500,
+              color: colors.muted,
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildPlatformBadge(String platform, CpColors colors) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: colors.chipBg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        platform.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: colors.chipText,
-        ),
+  Widget _buildMetricCard(BuildContext context, {required String title, required String value, required IconData icon, required Color color}) {
+    final colors = Theme.of(context).brightness == Brightness.dark ? CpColors.dark : CpColors.light;
+
+    return CpCard(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+      borderRadius: 16,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              color: colors.ink,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: colors.muted,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -481,64 +596,70 @@ class DashboardScreen extends ConsumerWidget {
     final platforms = ['TELEGRAM', 'VK', 'YOUTUBE', 'INSTAGRAM', 'TIKTOK'];
 
     return SizedBox(
-      height: 72,
+      height: 80,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: platforms.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final p = platforms[index];
           final isConnected = state.channels.any((c) => c.platform.toUpperCase() == p);
           final isManual = p == 'TIKTOK';
 
-          return Container(
-            width: 115,
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: colors.surface,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: colors.border),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(
-                  p,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
-                    color: colors.ink,
-                  ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: isConnected
-                            ? (isManual ? Colors.amber : colors.success)
-                            : colors.muted.withOpacity(0.4),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        isConnected ? (isManual ? 'Ручной' : 'Активен') : 'Не подкл.',
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w600,
-                          color: colors.muted,
+          return CpCard(
+            borderRadius: 16,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: SizedBox(
+              width: 100,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      PlatformIcon(p, size: 22),
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: isConnected
+                              ? (isManual ? Colors.amber : colors.success)
+                              : colors.muted.withOpacity(0.4),
+                          boxShadow: isConnected
+                              ? [
+                                  BoxShadow(
+                                    color: (isManual ? Colors.amber : colors.success).withOpacity(0.5),
+                                    blurRadius: 4,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
+                    ],
+                  ),
+                  Text(
+                    p,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: colors.ink,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                  Text(
+                    isConnected ? (isManual ? 'Ручной' : 'Активен') : 'Не подкл.',
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: isConnected ? colors.success : colors.muted,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
             ),
           );
         },
@@ -552,7 +673,7 @@ class DashboardScreen extends ConsumerWidget {
         Text(
           value,
           style: TextStyle(
-            fontSize: 18,
+            fontSize: 20,
             fontWeight: FontWeight.w900,
             color: colors.ink,
           ),
@@ -562,6 +683,7 @@ class DashboardScreen extends ConsumerWidget {
           label,
           style: TextStyle(
             fontSize: 12,
+            fontWeight: FontWeight.w600,
             color: colors.muted,
           ),
         ),

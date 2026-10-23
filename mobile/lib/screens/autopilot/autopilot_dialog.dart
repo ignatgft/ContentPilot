@@ -58,21 +58,22 @@ class _AutopilotDialogState extends ConsumerState<AutopilotDialog> {
     final colors = isDark ? CpColors.dark : CpColors.light;
 
     return AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
       title: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: colors.accent.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(8),
+              gradient: CpColors.primaryGradient,
+              borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.auto_awesome_rounded, color: colors.accent, size: 20),
+            child: const Icon(Icons.bolt_rounded, color: Colors.white, size: 20),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           const Expanded(
             child: Text(
               'Автопилот на неделю',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
             ),
           ),
         ],
