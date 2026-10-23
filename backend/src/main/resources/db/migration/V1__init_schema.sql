@@ -1,0 +1,95 @@
+-- ContentPilot initial schema V1
+
+CREATE TABLE IF NOT EXISTS users (
+    id BIGSERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255),
+    google_sub VARCHAR(255) UNIQUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS brands (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    audience TEXT,
+    tone VARCHAR(100),
+    facts JSONB,
+    autonomy_mode VARCHAR(50) DEFAULT 'MANUAL' NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS brand_samples (
+    id BIGSERIAL PRIMARY KEY,
+    brand_id BIGINT NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+    text TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS campaigns (
+    id BIGSERIAL PRIMARY KEY,
+    brand_id BIGINT NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+    goal TEXT NOT NULL,
+    period_start DATE,
+    period_end DATE,
+    status VARCHAR(50) DEFAULT 'ACTIVE' NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS posts (
+    id BIGSERIAL PRIMARY KEY,
+    campaign_id BIGINT NOT NULL REFERENCES campaigns(id) ON DELETE CASCADE,
+    platform VARCHAR(50) NOT NULL,
+    text TEXT NOT NULL,
+    media_url VARCHAR(1024),
+    status VARCHAR(50) DEFAULT 'DRAFT' NOT NULL,
+    scheduled_at TIMESTAMP WITH TIME ZONE,
+    published_at TIMESTAMP WITH TIME ZONE,
+    error TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS verification_results (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    check_type VARCHAR(100) NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    message TEXT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS channels (
+    id BIGSERIAL PRIMARY KEY,
+    brand_id BIGINT NOT NULL REFERENCES brands(id) ON DELETE CASCADE,
+    platform VARCHAR(50) NOT NULL,
+    external_id VARCHAR(255) NOT NULL,
+    encrypted_token TEXT NOT NULL,
+    status VARCHAR(50) DEFAULT 'CONNECTED' NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS publish_log (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    attempt INT DEFAULT 1 NOT NULL,
+    result VARCHAR(50) NOT NULL,
+    message TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS post_metrics (
+    id BIGSERIAL PRIMARY KEY,
+    post_id BIGINT NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+    views INT DEFAULT 0 NOT NULL,
+    reactions INT DEFAULT 0 NOT NULL,
+    clicks INT DEFAULT 0 NOT NULL,
+    collected_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP NOT NULL
+);
+
+-- Indexes for performance
+CREATE INDEX IF NOT EXISTS idx_brands_user_id ON brands(user_id);
+CREATE INDEX IF NOT EXISTS idx_campaigns_brand_id ON campaigns(brand_id);
+CREATE INDEX IF NOT EXISTS idx_posts_campaign_id ON posts(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_posts_status_scheduled ON posts(status, scheduled_at);
+CREATE INDEX IF NOT EXISTS idx_channels_brand_id ON channels(brand_id);

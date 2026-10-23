@@ -1,0 +1,13 @@
+@import "tailwindcss";
+@import "./design-kit/tokens/tokens.css";
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background-color: var(--bg);
+  color: var(--ink);
+}

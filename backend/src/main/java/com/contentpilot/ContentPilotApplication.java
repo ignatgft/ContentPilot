@@ -1,0 +1,14 @@
+package com.contentpilot;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
+
+@SpringBootApplication
+@EnableScheduling
+public class ContentPilotApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(ContentPilotApplication.class, args);
+    }
+}
