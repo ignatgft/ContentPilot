@@ -45,3 +45,24 @@
 - **Симптом**: `UnicodeEncodeError: 'charmap' codec can't encode character '\u20bd' in position 56: character maps to <undefined>`.
 - **Причина**: Консоль Windows по умолчанию использует кодировку CP1251 / CP866, в которой отсутствует глиф символа рубля.
 - **Решение**: При выводе логов или консольных тестов в Python использовать явную бинарную запись `sys.stdout.buffer.write(msg.encode('utf-8'))` или устанавливать `$env:PYTHONIOENCODING='utf-8'`.
+
+---
+
+### 6. Android Release сборка блокирует открытый HTTP (Cleartext Traffic)
+- **Симптом**: В дебаг-сборке Flutter запросы к локальному бэкенду по `http://192.168.x.x:8080` проходят, а в release APK возвращается `DioException: ClientException: Cleartext HTTP traffic not permitted`.
+- **Причина**: Начиная с Android 9 (API 28), система по умолчанию запрещает незашифрованный HTTP-трафик в релизных сборках. Файлы в `android/app/src/debug/` игнорируются при компиляции release.
+- **Решение**: Добавить `android:networkSecurityConfig="@xml/network_security_config"` в основной манифест `android/app/src/main/AndroidManifest.xml`, а в `android/app/src/main/res/xml/network_security_config.xml` явно прописать `<base-config cleartextTrafficPermitted="true" />`.
+
+---
+
+### 7. Изоляция локальной сети Windows Defender Firewall и AP Isolation
+- **Симптом**: Мобильный телефон в одной Wi-Fi сети не может открыть `http://192.168.10.181:3000`.
+- **Причина**: Брандмауэр Windows Defender по умолчанию блокирует все входящие подключения с других локальных IP на произвольные порты (3000, 8080), а домашние роутеры часто включают изоляцию беспроводных клиентов (Client/AP Isolation).
+- **Решение**: Использовать зашифрованный HTTPS-туннель (Cloudflare Tunnel: `cloudflared tunnel --url http://127.0.0.1:3000`), который работает изнутри ПК наружу через исходящие QUIC-соединения и гарантированно доступен с любого мобильного устройства как по Wi-Fi, так и через сотовую связь (LTE/4G).
+
+---
+
+### 8. Импорт `package:flutter/widgets.dart` vs `package:flutter/material.dart`
+- **Симптом**: В юнит-тестах `flutter test` ошибка `The getter 'Icons' isn't defined for the type 'PlatformIcon'`.
+- **Причина**: Файл темы или иконок импортировал легковесный `widgets.dart` вместо `material.dart`, в котором определены константы `Icons.*`.
+- **Решение**: В файлах с виджетами иконок и дизайн-токенами всегда импортировать полный пакет `package:flutter/material.dart`.
