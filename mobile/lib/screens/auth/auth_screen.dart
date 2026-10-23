@@ -53,11 +53,55 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     });
   }
 
+  void _showChangeServerDialog() {
+    final client = ref.read(apiClientProvider);
+    final urlController = TextEditingController(text: client.currentBaseUrl);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Адрес сервера бэкенда'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Укажите IP-адрес компьютера в локальной Wi-Fi сети:',
+              style: TextStyle(fontSize: 13),
+            ),
+            const SizedBox(height: 10),
+            TextField(
+              controller: urlController,
+              decoration: const InputDecoration(labelText: 'URL бэкенда'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Отмена'),
+          ),
+          FilledButton(
+            onPressed: () {
+              client.updateBaseUrl(urlController.text.trim());
+              Navigator.pop(ctx);
+              setState(() {});
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Сервер: ${client.currentBaseUrl}')),
+              );
+            },
+            child: const Text('Сохранить'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final colors = isDark ? CpColors.dark : CpColors.light;
+    final currentServer = ref.watch(apiClientProvider).currentBaseUrl;
 
     return Scaffold(
       body: SafeArea(
@@ -79,7 +123,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: colors.accent.withOpacity(0.35),
+                            color: colors.accent.withValues(alpha: 0.35),
                             blurRadius: 18,
                             offset: const Offset(0, 6),
                           ),
@@ -113,7 +157,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       height: 1.4,
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 28),
 
                   // Segmented Tabs: Вход / Регистрация
                   Container(
@@ -135,7 +179,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 boxShadow: _isLogin
                                     ? [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
+                                          color: Colors.black.withValues(alpha: 0.06),
                                           blurRadius: 4,
                                           offset: const Offset(0, 2),
                                         ),
@@ -164,7 +208,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                                 boxShadow: !_isLogin
                                     ? [
                                         BoxShadow(
-                                          color: Colors.black.withOpacity(0.06),
+                                          color: Colors.black.withValues(alpha: 0.06),
                                           blurRadius: 4,
                                           offset: const Offset(0, 2),
                                         ),
@@ -185,16 +229,16 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Error banner
                   if (authState.errorMessage != null) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: colors.warning.withOpacity(0.12),
+                        color: colors.warning.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: colors.warning.withOpacity(0.3)),
+                        border: Border.all(color: colors.warning.withValues(alpha: 0.3)),
                       ),
                       child: Row(
                         children: [
@@ -227,7 +271,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       validator: (v) =>
                           v == null || v.trim().isEmpty ? 'Введите имя' : null,
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 14),
                   ],
 
                   TextFormField(
@@ -245,7 +289,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
 
                   TextFormField(
                     controller: _passwordController,
@@ -270,7 +314,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 20),
 
                   // Submit Button
                   FilledButton(
@@ -286,7 +330,45 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           )
                         : Text(_isLogin ? 'Войти в ContentPilot' : 'Создать аккаунт'),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
+
+                  // Google Login Button
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: isDark ? const Color(0xFF1F2438) : Colors.white,
+                      side: BorderSide(color: colors.border),
+                    ),
+                    icon: Container(
+                      width: 20,
+                      height: 20,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Center(
+                        child: Text(
+                          'G',
+                          style: TextStyle(
+                            color: Color(0xFF4285F4),
+                            fontWeight: FontWeight.w900,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ),
+                    label: Text(
+                      'Войти через Google',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: colors.ink,
+                      ),
+                    ),
+                    onPressed: authState.isLoading
+                        ? null
+                        : () => ref.read(authProvider.notifier).loginWithGoogle(),
+                  ),
+                  const SizedBox(height: 12),
 
                   // Quick Demo fill button
                   OutlinedButton.icon(
@@ -294,15 +376,22 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     label: const Text('Заполнить демо-аккаунт (1 клик)'),
                     onPressed: _fillDemoUser,
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // Footer note
-                  Text(
-                    'ContentPilot 2.0 • Безопасное локальное подключение к бэкенду',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: colors.muted.withOpacity(0.8),
+                  // Server connection hint & button
+                  Center(
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                      icon: const Icon(Icons.settings_ethernet, size: 15),
+                      label: Text(
+                        'Сервер: $currentServer',
+                        style: TextStyle(fontSize: 11, color: colors.muted),
+                      ),
+                      onPressed: _showChangeServerDialog,
                     ),
                   ),
                 ],
