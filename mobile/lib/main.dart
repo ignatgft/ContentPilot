@@ -116,13 +116,15 @@ class _MobileHomeScreenState extends ConsumerState<MobileHomeScreen> {
                   ],
                 ),
               );
-              if (confirmed == true && mounted) {
+              if (confirmed == true && context.mounted) {
                 try {
                   await ref.read(apiClientProvider).dio.post('/posts/stop-all');
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Все публикации приостановлены')),
                   );
                 } catch (e) {
+                  if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(content: Text('Ошибка: $e')),
                   );
