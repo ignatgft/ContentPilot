@@ -1,0 +1,8 @@
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: "assets/logo/mark-light.png"
+  adaptive_icon_background: "#4F46E5"
+  adaptive_icon_foreground: "assets/logo/mark-foreground.png"
+  adaptive_icon_monochrome: "assets/logo/mark-foreground.png"
+  min_sdk_android: 21
