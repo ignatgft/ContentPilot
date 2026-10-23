@@ -11,7 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -82,33 +84,74 @@ public class VerificationService {
         String text = post.getText();
         Matcher matcher = PRICE_PATTERN.matcher(text);
 
-        // Find standard menu prices from brand facts
-        int expectedLattePrice = 320;
+        if (!matcher.find()) {
+            return VerificationResult.builder()
+                    .checkType("PRICE_CHECK")
+                    .status("PASSED")
+                    .message("Цены не указаны или проверены")
+                    .build();
+        }
+
+        // Parse all menu items and prices dynamically from brand facts
+        Map<String, Integer> menuItems = new LinkedHashMap<>();
         try {
-            if (brand.getFacts() != null) {
+            if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
                 JsonNode factsNode = objectMapper.readTree(brand.getFacts());
                 JsonNode menuNode = factsNode.path("menu");
                 if (menuNode.isArray()) {
                     for (JsonNode item : menuNode) {
-                        String name = item.path("name").asText("").toLowerCase();
-                        if (name.contains("латте") || name.contains("тыква")) {
-                            expectedLattePrice = item.path("price").asInt(320);
-                            break;
+                        String name = item.path("name").asText("").trim().toLowerCase();
+                        int price = item.path("price").asInt(0);
+                        if (!name.isEmpty() && price > 0) {
+                            menuItems.put(name, price);
                         }
                     }
+                } else if (menuNode.isObject()) {
+                    menuNode.fields().forEachRemaining(entry -> {
+                        String name = entry.getKey().trim().toLowerCase();
+                        int price = entry.getValue().asInt(0);
+                        if (!name.isEmpty() && price > 0) {
+                            menuItems.put(name, price);
+                        }
+                    });
                 }
             }
         } catch (Exception e) {
             log.warn("Error parsing brand facts for price check: {}", e.getMessage());
         }
 
-        if (text.toLowerCase().contains("латте") && matcher.find()) {
+        // Re-run matcher from start of text
+        matcher.reset();
+        String lowerText = text.toLowerCase();
+
+        while (matcher.find()) {
             int foundPrice = Integer.parseInt(matcher.group(1));
-            if (foundPrice != expectedLattePrice) {
+
+            // Check if any specific menu item is referenced in the post
+            boolean matchedProduct = false;
+            for (Map.Entry<String, Integer> entry : menuItems.entrySet()) {
+                String itemName = entry.getKey();
+                int expectedPrice = entry.getValue();
+
+                // Check whole words or substrings for the product name
+                if (lowerText.contains(itemName)) {
+                    matchedProduct = true;
+                    if (foundPrice != expectedPrice) {
+                        return VerificationResult.builder()
+                                .checkType("PRICE_CHECK")
+                                .status("NEEDS_REVIEW")
+                                .message(String.format("Цена %s в посте (%d₽) не совпадает с меню бренда (%d₽)", itemName, foundPrice, expectedPrice))
+                                .build();
+                    }
+                }
+            }
+
+            // If price mentioned but no specific product name matched, ensure price exists in menu
+            if (!matchedProduct && !menuItems.isEmpty() && !menuItems.containsValue(foundPrice)) {
                 return VerificationResult.builder()
                         .checkType("PRICE_CHECK")
                         .status("NEEDS_REVIEW")
-                        .message(String.format("Цена латте в посте (%d₽) не совпадает с меню бренда (%d₽)", foundPrice, expectedLattePrice))
+                        .message(String.format("В посте указана цена %d₽, которой нет в меню бренда", foundPrice))
                         .build();
             }
         }
@@ -121,14 +164,33 @@ public class VerificationService {
     }
 
     private VerificationResult checkBrandFacts(Post post, Brand brand) {
-        // Stop-words check
-        String[] prohibitedWords = {"100% гарантия", "бесплатно навсегда", "лечит болезни"};
-        for (String word : prohibitedWords) {
-            if (post.getText().toLowerCase().contains(word)) {
+        String lowerText = post.getText().toLowerCase();
+        List<String> stopWords = new ArrayList<>(List.of("100% гарантия", "бесплатно навсегда", "лечит болезни"));
+
+        // Check custom stop words from Brand facts
+        try {
+            if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
+                JsonNode factsNode = objectMapper.readTree(brand.getFacts());
+                JsonNode customStopWords = factsNode.path("stopWords");
+                if (customStopWords.isArray()) {
+                    for (JsonNode sw : customStopWords) {
+                        String word = sw.asText("").trim().toLowerCase();
+                        if (!word.isEmpty()) {
+                            stopWords.add(word);
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Error parsing custom stop-words: {}", e.getMessage());
+        }
+
+        for (String word : stopWords) {
+            if (lowerText.contains(word)) {
                 return VerificationResult.builder()
                         .checkType("BRAND_FACTS")
                         .status("NEEDS_REVIEW")
-                        .message("Обнаружено запрещенное обещание: " + word)
+                        .message("Обнаружено запрещенное обещание / стоп-слово: " + word)
                         .build();
             }
         }

@@ -100,6 +100,7 @@ class CreativePresetModel {
   final String style;
   final String defaultAspectRatio;
   final String suggestedBadge;
+  final String? suggestedPrice;
   final String suggestedCta;
   final String category;
 
@@ -111,6 +112,7 @@ class CreativePresetModel {
     required this.style,
     required this.defaultAspectRatio,
     required this.suggestedBadge,
+    this.suggestedPrice,
     required this.suggestedCta,
     required this.category,
   });
@@ -124,6 +126,7 @@ class CreativePresetModel {
       style: json['style'] ?? 'COFFEE_AESTHETIC',
       defaultAspectRatio: json['defaultAspectRatio'] ?? '1:1',
       suggestedBadge: json['suggestedBadge'] ?? '',
+      suggestedPrice: json['suggestedPrice'],
       suggestedCta: json['suggestedCta'] ?? '',
       category: json['category'] ?? '',
     );

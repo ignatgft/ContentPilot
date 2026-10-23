@@ -330,6 +330,52 @@ public class CreativeStudioService {
     }
 
     public List<CreativeDto.CreativePreset> getCreativePresets() {
+        return getCreativePresets(null);
+    }
+
+    public List<CreativeDto.CreativePreset> getCreativePresets(User user) {
+        List<CreativeDto.CreativePreset> presets = new ArrayList<>();
+
+        if (user != null) {
+            brandRepository.findByUserId(user.getId()).ifPresent(brand -> {
+                try {
+                    if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
+                        com.fasterxml.jackson.databind.JsonNode factsNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(brand.getFacts());
+                        com.fasterxml.jackson.databind.JsonNode menuNode = factsNode.path("menu");
+                        if (menuNode.isArray()) {
+                            for (com.fasterxml.jackson.databind.JsonNode item : menuNode) {
+                                String name = item.path("name").asText("");
+                                int price = item.path("price").asInt(0);
+                                if (!name.isBlank() && price > 0) {
+                                    presets.add(CreativeDto.CreativePreset.builder()
+                                            .id("brand-item-" + Math.abs(name.hashCode()))
+                                            .title(name + " (" + price + " ₽)")
+                                            .description("Фирменное предложение из меню " + (brand.getName() != null ? brand.getName() : ""))
+                                            .prompt(String.format("Студийная фуд-съёмка позиции %s, аппетитная сервировка, естественный свет в интерьере %s",
+                                                    name, brand.getName() != null ? brand.getName() : "кофейни"))
+                                            .style("COFFEE_AESTHETIC")
+                                            .defaultAspectRatio("1:1")
+                                            .suggestedBadge("Хит продаж")
+                                            .suggestedPrice(price + " ₽")
+                                            .suggestedCta("Заказать")
+                                            .category("Меню бренда")
+                                            .build());
+                                    if (presets.size() >= 3) break;
+                                }
+                            }
+                        }
+                    }
+                } catch (Exception e) {
+                    log.debug("No custom brand presets parsed: {}", e.getMessage());
+                }
+            });
+        }
+
+        presets.addAll(getBasePresets());
+        return presets;
+    }
+
+    private List<CreativeDto.CreativePreset> getBasePresets() {
         return List.of(
                 CreativeDto.CreativePreset.builder()
                         .id("latte-art-cozy")
@@ -339,6 +385,7 @@ public class CreativeStudioService {
                         .style("COFFEE_AESTHETIC")
                         .defaultAspectRatio("1:1")
                         .suggestedBadge("Сезонная новинка")
+                        .suggestedPrice("320 ₽")
                         .suggestedCta("Попробовать")
                         .category("Напитки")
                         .build(),
@@ -350,6 +397,7 @@ public class CreativeStudioService {
                         .style("STUDIO_COMMERCIAL")
                         .defaultAspectRatio("1:1")
                         .suggestedBadge("Хит продаж")
+                        .suggestedPrice("180 ₽")
                         .suggestedCta("Заказать")
                         .category("Выпечка")
                         .build(),
@@ -361,6 +409,7 @@ public class CreativeStudioService {
                         .style("DARK_LUXURY")
                         .defaultAspectRatio("9:16")
                         .suggestedBadge("Акция дня")
+                        .suggestedPrice("350 ₽")
                         .suggestedCta("Смотреть")
                         .category("Reels & Shorts")
                         .build(),
@@ -372,6 +421,7 @@ public class CreativeStudioService {
                         .style("VIBRANT_POP")
                         .defaultAspectRatio("16:9")
                         .suggestedBadge("Скидка 20%")
+                        .suggestedPrice("-20%")
                         .suggestedCta("В каталог")
                         .category("Баннеры")
                         .build()

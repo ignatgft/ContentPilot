@@ -52,6 +52,7 @@ interface CreativePreset {
   style: string;
   defaultAspectRatio: string;
   suggestedBadge: string;
+  suggestedPrice?: string;
   suggestedCta: string;
   category: string;
 }
@@ -89,11 +90,37 @@ export const CreativeStudioPage: React.FC = () => {
   const [postCaption, setPostCaption] = useState('');
   const [attachSuccessMessage, setAttachSuccessMessage] = useState('');
 
-  // Load presets & media gallery
+  // Load brand memory, presets & media gallery dynamically
   useEffect(() => {
+    loadBrandInfo();
     loadPresets();
     loadMedia();
   }, []);
+
+  const loadBrandInfo = async () => {
+    try {
+      const brand = await apiRequest<any>('/brands/me');
+      if (brand && brand.name) {
+        setBrandName(brand.name);
+        if (brand.facts) {
+          try {
+            const factsObj = typeof brand.facts === 'string' ? JSON.parse(brand.facts) : brand.facts;
+            if (factsObj.menu && Array.isArray(factsObj.menu) && factsObj.menu.length > 0) {
+              const firstItem = factsObj.menu[0];
+              if (firstItem.price) {
+                setPrice(`${firstItem.price} ₽`);
+              }
+              if (firstItem.name) {
+                setPrompt(`Профессиональная фотосъемка блюда ${firstItem.name}, изысканная подача, естественный мягкий свет`);
+              }
+            }
+          } catch (ignored) {}
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+  };
 
   const loadPresets = async () => {
     try {
@@ -119,6 +146,9 @@ export const CreativeStudioPage: React.FC = () => {
     setAspectRatio(preset.defaultAspectRatio);
     setBadgeText(preset.suggestedBadge);
     setCtaText(preset.suggestedCta);
+    if (preset.suggestedPrice) {
+      setPrice(preset.suggestedPrice);
+    }
   };
 
   const handleGenerateImage = async () => {

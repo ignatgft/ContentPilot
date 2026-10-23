@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../models/creative_models.dart';
 import '../../providers/creative_provider.dart';
+import '../../providers/brand_provider.dart';
 import '../../theme/app_icons.dart';
 import '../../theme/app_theme.dart';
 
@@ -32,6 +33,30 @@ class _CreativeStudioScreenState extends ConsumerState<CreativeStudioScreen> wit
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+
+    // Initialize with actual brand memory if available
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final brandState = ref.read(brandProvider);
+      if (brandState.brand != null) {
+        if (brandState.brand!.name.isNotEmpty) {
+          _brandController.text = brandState.brand!.name;
+        }
+        final facts = brandState.brand!.facts;
+        if (facts != null && facts['menu'] is List && (facts['menu'] as List).isNotEmpty) {
+          final firstItem = (facts['menu'] as List).first;
+          if (firstItem is Map) {
+            final price = firstItem['price'];
+            final name = firstItem['name'];
+            if (price != null) {
+              _priceController.text = '$price ₽';
+            }
+            if (name != null) {
+              _promptController.text = 'Профессиональная фотосъемка позиции $name, изысканная сервировка';
+            }
+          }
+        }
+      }
+    });
   }
 
   @override
@@ -52,6 +77,9 @@ class _CreativeStudioScreenState extends ConsumerState<CreativeStudioScreen> wit
       _selectedAspectRatio = preset.defaultAspectRatio;
       _badgeController.text = preset.suggestedBadge;
       _ctaController.text = preset.suggestedCta;
+      if (preset.suggestedPrice != null && preset.suggestedPrice!.isNotEmpty) {
+        _priceController.text = preset.suggestedPrice!;
+      }
     });
   }
 

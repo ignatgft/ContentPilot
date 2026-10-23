@@ -33,10 +33,21 @@ public class BrandService {
         Brand brand = brandRepository.findByUserId(userId)
                 .orElseGet(() -> Brand.builder().userId(userId).build());
 
-        brand.setName(request.getName());
-        brand.setDescription(request.getDescription());
-        brand.setAudience(request.getAudience());
-        brand.setTone(request.getTone());
+        if (request.getName() != null && !request.getName().isBlank()) {
+            brand.setName(request.getName());
+        } else if (brand.getName() == null) {
+            brand.setName("Мой Бренд");
+        }
+
+        if (request.getDescription() != null) {
+            brand.setDescription(request.getDescription());
+        }
+        if (request.getAudience() != null) {
+            brand.setAudience(request.getAudience());
+        }
+        if (request.getTone() != null) {
+            brand.setTone(request.getTone());
+        }
         if (request.getAutonomyMode() != null) {
             brand.setAutonomyMode(request.getAutonomyMode());
         }
@@ -50,7 +61,9 @@ public class BrandService {
                 }
             }
         } catch (Exception e) {
-            brand.setFacts("{}");
+            if (brand.getFacts() == null) {
+                brand.setFacts("{}");
+            }
         }
 
         brand = brandRepository.save(brand);

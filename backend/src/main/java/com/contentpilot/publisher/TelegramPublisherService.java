@@ -47,13 +47,44 @@ public class TelegramPublisherService {
 
         if (botToken != null && !botToken.isBlank() && !botToken.startsWith("your-") && chatId != null && !chatId.isBlank()) {
             try {
-                String telegramUrl = "https://api.telegram.org/bot" + botToken + "/sendMessage";
-                Map<String, Object> payload = Map.of(
-                        "chat_id", chatId,
-                        "text", post.getText(),
-                        "parse_mode", "HTML"
-                );
+                String mediaUrl = post.getMediaUrl();
+                String method = "sendMessage";
+                Map<String, Object> payload;
 
+                if (mediaUrl != null && !mediaUrl.isBlank() && (mediaUrl.startsWith("http://") || mediaUrl.startsWith("https://"))) {
+                    String lowerMedia = mediaUrl.toLowerCase();
+                    if (lowerMedia.endsWith(".png") || lowerMedia.endsWith(".jpg") || lowerMedia.endsWith(".jpeg")) {
+                        method = "sendPhoto";
+                        payload = Map.of(
+                                "chat_id", chatId,
+                                "photo", mediaUrl,
+                                "caption", post.getText(),
+                                "parse_mode", "HTML"
+                        );
+                    } else if (lowerMedia.endsWith(".mp4") || lowerMedia.endsWith(".mov")) {
+                        method = "sendVideo";
+                        payload = Map.of(
+                                "chat_id", chatId,
+                                "video", mediaUrl,
+                                "caption", post.getText(),
+                                "parse_mode", "HTML"
+                        );
+                    } else {
+                        payload = Map.of(
+                                "chat_id", chatId,
+                                "text", post.getText(),
+                                "parse_mode", "HTML"
+                        );
+                    }
+                } else {
+                    payload = Map.of(
+                            "chat_id", chatId,
+                            "text", post.getText(),
+                            "parse_mode", "HTML"
+                    );
+                }
+
+                String telegramUrl = "https://api.telegram.org/bot" + botToken + "/" + method;
                 String response = restClient.post()
                         .uri(telegramUrl)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -61,13 +92,13 @@ public class TelegramPublisherService {
                         .retrieve()
                         .body(String.class);
 
-                log.info("Telegram publish success for post {}: {}", post.getId(), response);
+                log.info("Telegram publish success ({}) for post {}: {}", method, post.getId(), response);
 
                 publishLogRepository.save(PublishLog.builder()
                         .post(post)
                         .attempt(currentAttempt)
                         .result("SUCCESS")
-                        .message("Успешно опубликовано в Telegram канал " + chatId)
+                        .message(String.format("Успешно опубликовано (%s) в Telegram канал %s", method, chatId))
                         .build());
 
                 post.setStatus("PUBLISHED");

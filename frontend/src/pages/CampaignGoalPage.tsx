@@ -29,19 +29,33 @@ const GOALS: GoalOption[] = [
 
 export const CampaignGoalPage: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedGoal, setSelectedGoal] = useState('latte');
-  const [customGoalText, setCustomGoalText] = useState('Продвинуть сезонный латте Тыква-Пряности');
+  const [selectedGoal, setSelectedGoal] = useState('product');
+  const [customGoalText, setCustomGoalText] = useState('Продвинуть специальное предложение');
   const durationDays = 7;
   const [generating, setGenerating] = useState(false);
   const [hasBrand, setHasBrand] = useState<boolean | null>(null);
 
-  // Check if brand exists
+  // Check if brand exists and adapt default goal dynamically
   useEffect(() => {
     async function checkBrand() {
       try {
         const brand = await apiRequest<any>('/brands/me');
         if (brand && brand.name) {
           setHasBrand(true);
+          let firstItemName = '';
+          if (brand.facts) {
+            try {
+              const factsObj = typeof brand.facts === 'string' ? JSON.parse(brand.facts) : brand.facts;
+              if (factsObj.menu && Array.isArray(factsObj.menu) && factsObj.menu.length > 0) {
+                firstItemName = factsObj.menu[0].name;
+              }
+            } catch (ignored) {}
+          }
+          if (firstItemName) {
+            setCustomGoalText(`Продвинуть ${firstItemName}`);
+          } else {
+            setCustomGoalText(`Привлечь новых клиентов в ${brand.name}`);
+          }
         } else {
           setHasBrand(false);
         }

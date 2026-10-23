@@ -122,34 +122,106 @@ public class ClaudeGenerationService {
     }
 
     private List<GeneratedPost> generateFallbackPosts(Brand brand, String goal, int durationDays) {
-        String brandName = brand.getName() != null ? brand.getName() : "Coffee Point";
+        String brandName = (brand.getName() != null && !brand.getName().isBlank()) ? brand.getName() : "Наш Бренд";
+        String tone = (brand.getTone() != null && !brand.getTone().isBlank()) ? brand.getTone() : "Дружелюбный и вдохновляющий";
+        String schedule = "ежедневно с 08:00 до 22:00";
+        String address = "";
+
+        // Parse menu and facts dynamically from Brand Memory
+        Map<String, Integer> menu = new LinkedHashMap<>();
+        try {
+            if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
+                JsonNode factsNode = objectMapper.readTree(brand.getFacts());
+                if (factsNode.has("schedule")) {
+                    schedule = factsNode.path("schedule").asText(schedule);
+                }
+                if (factsNode.has("address")) {
+                    address = factsNode.path("address").asText("");
+                }
+
+                JsonNode menuNode = factsNode.path("menu");
+                if (menuNode.isArray()) {
+                    for (JsonNode item : menuNode) {
+                        String name = item.path("name").asText("");
+                        int price = item.path("price").asInt(0);
+                        if (!name.isBlank() && price > 0) {
+                            menu.put(name, price);
+                        }
+                    }
+                } else if (menuNode.isObject()) {
+                    menuNode.fields().forEachRemaining(entry -> {
+                        menu.put(entry.getKey(), entry.getValue().asInt(0));
+                    });
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse brand facts in fallback generation: {}", e.getMessage());
+        }
+
+        // Determine primary and secondary product
+        String primaryProduct = "Фирменное предложение";
+        int primaryPrice = 300;
+        String secondaryProduct = "Популярная позиция";
+        int secondaryPrice = 250;
+
+        if (!menu.isEmpty()) {
+            List<Map.Entry<String, Integer>> entries = new ArrayList<>(menu.entrySet());
+            // Check if goal mentions any menu item
+            if (goal != null) {
+                String goalLower = goal.toLowerCase();
+                for (Map.Entry<String, Integer> entry : entries) {
+                    if (goalLower.contains(entry.getKey().toLowerCase())) {
+                        primaryProduct = entry.getKey();
+                        primaryPrice = entry.getValue();
+                        break;
+                    }
+                }
+            }
+            if (primaryProduct.equals("Фирменное предложение")) {
+                primaryProduct = entries.get(0).getKey();
+                primaryPrice = entries.get(0).getValue();
+            }
+            if (entries.size() > 1) {
+                secondaryProduct = entries.get(1).getKey();
+                secondaryPrice = entries.get(1).getValue();
+            } else {
+                secondaryProduct = primaryProduct;
+                secondaryPrice = primaryPrice;
+            }
+        }
+
+        String locationInfo = address.isBlank() ? "Ждём вас в гости!" : "Ждём вас по адресу: " + address + "!";
         List<GeneratedPost> posts = new ArrayList<>();
 
-        // Post 1: Announcement (Telegram)
+        // Post 1: Telegram — Главный анонс и УТП
         posts.add(GeneratedPost.builder()
                 .platform("TELEGRAM")
-                .text("🍂 Уют осени в каждом глотке! В " + brandName + " мы запустили согревающий сезонный латте Тыква-Пряности с натуральным тыквенным пюре, корицей и мускатным орехом. Приходите согреваться и заряжаться вдохновением! ☕✨\n\nЦена: 320₽. Ждем вас с 08:00 до 22:00!")
+                .text(String.format("✨ Приветствуем в %s!\n\nИщете идеальный способ поднять настроение и зарядиться энергией? Попробуйте наше фирменное блюдо — %s по цене всего %d ₽!\n\n%s График работы: %s. Приходите в гости или оформляйте предзаказ! ☕💫",
+                        brandName, primaryProduct, primaryPrice, locationInfo, schedule))
                 .dayOffset(0)
                 .build());
 
-        // Post 2: Backstage / Story (VK)
+        // Post 2: VK — Экспертный бэкстейдж и качество ингредиентов
         posts.add(GeneratedPost.builder()
                 .platform("VK")
-                .text("Как мы готовим наш идеальный сезонный латте в " + brandName + "? Секрет прост: свежеобжаренное зерно 100% арабика, фермерское молоко и наш авторский тыквенный сироп собственного приготовления без искусственных добавок. 🍁 Попробуйте сегодня всего за 320₽!")
+                .text(String.format("Как в %s создается настоящий вкус?\n\nМы отбираем только свежие натуральные ингредиенты высшего качества. Наш фаворит среди гостей — %s всего за %d ₽. Идеально сбалансированный вкус и премиальная подача.\n\nЗаглядывайте попробовать сегодня! #%s #гастрономия #свежийвкус",
+                        brandName, primaryProduct, primaryPrice, brandName.replaceAll("\\s+", "_").toLowerCase()))
                 .dayOffset(2)
                 .build());
 
-        // Post 3: Promotional offer
+        // Post 3: Telegram — Специальное предложение / Комбо дня
         posts.add(GeneratedPost.builder()
                 .platform("TELEGRAM")
-                .text("⚡ Только на этой неделе в " + brandName + "! Заглядывайте к нам на обеденный перерыв: сезонный латте Тыква-Пряности со скидкой всего за 320₽! Отличный повод встретиться с друзьями в центре города. #кофе #сезонноеменю")
+                .text(String.format("🔥 Специальное предложение в %s!\n\nСделайте перерыв на обед особенным: попробуйте %s (%d ₽) или побалуйте себя %s (%d ₽). Отличный повод встретиться с коллегами и друзьями!\n\n%s",
+                        brandName, primaryProduct, primaryPrice, secondaryProduct, secondaryPrice, locationInfo))
                 .dayOffset(4)
                 .build());
 
-        // Post 4: Engagement / Weekend Call (INSTAGRAM)
+        // Post 4: Instagram — Вовлечение и планы на выходные
         posts.add(GeneratedPost.builder()
                 .platform("INSTAGRAM")
-                .text("Планы на выходные: книга, плед и большой стакан тыквенно-пряного латте в " + brandName + ". А с кем вы разделите эту чашку кофе? Отмечайте друзей в комментариях! 👇☕")
+                .text(String.format("Идеальный день начинается с маленьких удовольствий в %s ✨ Насладитесь уютной атмосферой и попробуйте %s (%d ₽). А как вы планируете провести эти дни? Делитесь в комментариях! 👇✨ #%s #weekend #lifestyle",
+                        brandName, primaryProduct, primaryPrice, brandName.replaceAll("\\s+", "_").toLowerCase()))
                 .dayOffset(6)
                 .build());
 

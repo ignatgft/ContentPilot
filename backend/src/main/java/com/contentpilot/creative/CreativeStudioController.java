@@ -55,7 +55,7 @@ public class CreativeStudioController {
     }
 
     @GetMapping("/presets")
-    public ResponseEntity<List<CreativeDto.CreativePreset>> getPresets() {
-        return ResponseEntity.ok(creativeStudioService.getCreativePresets());
+    public ResponseEntity<List<CreativeDto.CreativePreset>> getPresets(@AuthenticationPrincipal User user) {
+        return ResponseEntity.ok(creativeStudioService.getCreativePresets(user));
     }
 }

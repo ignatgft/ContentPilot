@@ -110,6 +110,7 @@ public class CreativeDto {
         private String style;
         private String defaultAspectRatio;
         private String suggestedBadge;
+        private String suggestedPrice;
         private String suggestedCta;
         private String category;
     }

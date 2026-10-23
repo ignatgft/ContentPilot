@@ -6,6 +6,7 @@ import { Settings, ShieldAlert, Sun, Moon, Globe, Bot, Check } from 'lucide-reac
 export const SettingsPage: React.FC = () => {
   const { theme, setTheme } = useTheme();
 
+  const [brandData, setBrandData] = useState<any>(null);
   const [autonomyMode, setAutonomyMode] = useState('SEMI_AUTO');
   const [language, setLanguage] = useState<'ru' | 'kg'>('ru');
   const [savedSuccess, setSavedSuccess] = useState(false);
@@ -15,8 +16,11 @@ export const SettingsPage: React.FC = () => {
     async function loadBrand() {
       try {
         const brand = await apiRequest<any>('/brands/me');
-        if (brand && brand.autonomyMode) {
-          setAutonomyMode(brand.autonomyMode);
+        if (brand) {
+          setBrandData(brand);
+          if (brand.autonomyMode) {
+            setAutonomyMode(brand.autonomyMode);
+          }
         }
       } catch (e) {
         // ignore
@@ -31,7 +35,7 @@ export const SettingsPage: React.FC = () => {
       await apiRequest('/brands', {
         method: 'POST',
         body: JSON.stringify({
-          name: 'Coffee Point',
+          name: brandData?.name || 'Мой Бренд',
           autonomyMode: mode,
         }),
       });
