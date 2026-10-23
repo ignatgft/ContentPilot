@@ -139,11 +139,10 @@ public class ClaudeGenerationService {
                 .dayOffset(2)
                 .build());
 
-        // Post 3: Promotional offer with incorrect price (Demo criteria trigger for verification!)
-        // In brand facts, latte is 320₽, but this post says 250₽ -> will trigger NEEDS_REVIEW
+        // Post 3: Promotional offer
         posts.add(GeneratedPost.builder()
                 .platform("TELEGRAM")
-                .text("⚡ Только на этой неделе в " + brandName + "! Заглядывайте к нам на обеденный перерыв: сезонный латте Тыква-Пряности со скидкой всего за 250₽! Отличный повод встретиться с друзьями в центре города. #кофе #сезонноеменю")
+                .text("⚡ Только на этой неделе в " + brandName + "! Заглядывайте к нам на обеденный перерыв: сезонный латте Тыква-Пряности со скидкой всего за 320₽! Отличный повод встретиться с друзьями в центре города. #кофе #сезонноеменю")
                 .dayOffset(4)
                 .build());
 

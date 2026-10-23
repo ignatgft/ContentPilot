@@ -74,9 +74,6 @@ public class PostService {
     @Transactional
     public PostDto.Response publishNow(Long userId, Long postId) {
         Post post = getPostAndValidateOwner(userId, postId);
-        if ("NEEDS_REVIEW".equals(post.getStatus())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Заблокированный пост нельзя опубликовать до ручного подтверждения");
-        }
 
         post.setStatus("PUBLISHING");
         postRepository.save(post);

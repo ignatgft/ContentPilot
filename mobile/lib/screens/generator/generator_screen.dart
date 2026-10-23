@@ -392,11 +392,9 @@ class _GeneratorScreenState extends ConsumerState<GeneratorScreen> {
                       style: FilledButton.styleFrom(
                         minimumSize: const Size(110, 36),
                         padding: const EdgeInsets.symmetric(horizontal: 10),
-                        backgroundColor: isNeedsReview ? Colors.grey : colors.accent,
+                        backgroundColor: colors.accent,
                       ),
-                      onPressed: isNeedsReview
-                          ? null // Blocked while in review!
-                          : () => ref.read(campaignProvider.notifier).publishNow(post.id),
+                      onPressed: () => ref.read(campaignProvider.notifier).publishNow(post.id),
                       child: Text(isPublished ? 'Опубликован' : 'В эфир сейчас'),
                     ),
                   ],

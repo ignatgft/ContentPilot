@@ -231,10 +231,6 @@ export const CampaignGoalPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="p-3.5 rounded-xl bg-[var(--chip-bg)] border border-[var(--border)] text-xs text-[var(--muted)] leading-relaxed">
-            ⚠️ <b>Правило хакатона:</b> Если пост содержит несоответствующую цену (например, 250₽ вместо 320₽), он блокируется со статусом <code className="font-bold text-[var(--ink)]">NEEDS_REVIEW</code>. Публикация невозможна без исправления или ручного подтверждения.
-          </div>
-
           <div className="pt-2 border-t border-[var(--border)] flex items-center justify-between">
             <span className="text-xs text-[var(--muted)]">Готовы протестировать демо-сценарий?</span>
             <button

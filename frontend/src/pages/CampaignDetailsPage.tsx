@@ -343,17 +343,9 @@ export const CampaignDetailsPage: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handlePublishNow(post)}
-                    disabled={isBlocked || post.status === 'PUBLISHING'}
-                    title={
-                      isBlocked
-                        ? 'Заблокированный пост нельзя опубликовать до исправления'
-                        : 'Опубликовать пост прямо сейчас'
-                    }
-                    className={`min-h-[40px] px-4 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer ${
-                      isBlocked
-                        ? 'opacity-40 bg-gray-400 text-white cursor-not-allowed'
-                        : 'bg-[var(--accent)] text-[var(--on-accent)] hover:opacity-95 shadow-sm'
-                    }`}
+                    disabled={post.status === 'PUBLISHING'}
+                    title="Опубликовать пост прямо сейчас"
+                    className="min-h-[40px] px-4 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all cursor-pointer bg-[var(--accent)] text-[var(--on-accent)] hover:opacity-95 shadow-sm"
                   >
                     <Send size={14} />
                     <span>

@@ -185,11 +185,9 @@ class _CalendarScreenState extends ConsumerState<CalendarScreen> {
                                     style: FilledButton.styleFrom(
                                       minimumSize: const Size(100, 32),
                                       padding: const EdgeInsets.symmetric(horizontal: 8),
-                                      backgroundColor: isNeedsReview ? Colors.grey : colors.accent,
+                                      backgroundColor: colors.accent,
                                     ),
-                                    onPressed: isNeedsReview
-                                        ? null
-                                        : () => ref.read(campaignProvider.notifier).publishNow(post.id),
+                                    onPressed: () => ref.read(campaignProvider.notifier).publishNow(post.id),
                                     child: Text(isPublished ? 'Опубликован' : 'В эфир', style: const TextStyle(fontSize: 12)),
                                   ),
                                 ],
