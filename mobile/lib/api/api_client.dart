@@ -2,7 +2,8 @@ import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
-  static const String defaultBaseUrl = 'http://192.168.10.181:8080/api/v1';
+  static const String tunnelBaseUrl = 'https://allows-thread-dedicated-screening.trycloudflare.com/api/v1';
+  static const String lanBaseUrl = 'http://192.168.10.181:8080/api/v1';
   static const String emulatorBaseUrl = 'http://10.0.2.2:8080/api/v1';
 
   late Dio dio;
@@ -11,7 +12,7 @@ class ApiClient {
 
   ApiClient({String? baseUrl, FlutterSecureStorage? storageInstance})
       : storage = storageInstance ?? const FlutterSecureStorage(),
-        currentBaseUrl = baseUrl ?? defaultBaseUrl {
+        currentBaseUrl = baseUrl ?? tunnelBaseUrl {
     _initDio();
   }
 
