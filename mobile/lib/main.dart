@@ -11,6 +11,7 @@ import 'screens/calendar/calendar_screen.dart';
 import 'screens/generator/generator_screen.dart';
 import 'screens/channels/channels_screen.dart';
 import 'screens/brand/brand_screen.dart';
+import 'screens/creative/creative_studio_screen.dart';
 import 'screens/analytics/analytics_screen.dart';
 import 'screens/settings/settings_screen.dart';
 
@@ -74,6 +75,7 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
       'ContentPilot',
       'Календарь публикаций',
       'Генератор контента',
+      'AI Студия (Креативы)',
       'Каналы и соцсети',
       'Профиль бренда',
       'Аналитика',
@@ -84,6 +86,7 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
       DashboardScreen(onTabChange: _onTabSelect),
       const CalendarScreen(),
       const GeneratorScreen(),
+      const CreativeStudioScreen(),
       const ChannelsScreen(),
       const BrandScreen(),
       const AnalyticsScreen(),
@@ -308,8 +311,8 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
                     },
                   ),
                   ListTile(
-                    leading: const AppIcon(AppIcons.share, size: 22),
-                    title: const Text('Каналы и соцсети', style: TextStyle(fontWeight: FontWeight.w600)),
+                    leading: const Icon(Icons.auto_awesome, size: 22, color: Colors.amber),
+                    title: const Text('AI Студия (Фото & Видео)', style: TextStyle(fontWeight: FontWeight.w700)),
                     selected: _currentIndex == 3,
                     selectedColor: colors.accent,
                     onTap: () {
@@ -318,8 +321,8 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
                     },
                   ),
                   ListTile(
-                    leading: const AppIcon(AppIcons.store, size: 22),
-                    title: const Text('Профиль бренда', style: TextStyle(fontWeight: FontWeight.w600)),
+                    leading: const AppIcon(AppIcons.share, size: 22),
+                    title: const Text('Каналы и соцсети', style: TextStyle(fontWeight: FontWeight.w600)),
                     selected: _currentIndex == 4,
                     selectedColor: colors.accent,
                     onTap: () {
@@ -327,10 +330,9 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
                       setState(() => _currentIndex = 4);
                     },
                   ),
-                  const Divider(indent: 16, endIndent: 16),
                   ListTile(
-                    leading: const AppIcon(AppIcons.chart, size: 22),
-                    title: const Text('Аналитика', style: TextStyle(fontWeight: FontWeight.w600)),
+                    leading: const AppIcon(AppIcons.store, size: 22),
+                    title: const Text('Профиль бренда', style: TextStyle(fontWeight: FontWeight.w600)),
                     selected: _currentIndex == 5,
                     selectedColor: colors.accent,
                     onTap: () {
@@ -338,14 +340,25 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
                       setState(() => _currentIndex = 5);
                     },
                   ),
+                  const Divider(indent: 16, endIndent: 16),
                   ListTile(
-                    leading: const AppIcon(AppIcons.settings, size: 22),
-                    title: const Text('Настройки', style: TextStyle(fontWeight: FontWeight.w600)),
+                    leading: const AppIcon(AppIcons.chart, size: 22),
+                    title: const Text('Аналитика', style: TextStyle(fontWeight: FontWeight.w600)),
                     selected: _currentIndex == 6,
                     selectedColor: colors.accent,
                     onTap: () {
                       Navigator.pop(context);
                       setState(() => _currentIndex = 6);
+                    },
+                  ),
+                  ListTile(
+                    leading: const AppIcon(AppIcons.settings, size: 22),
+                    title: const Text('Настройки', style: TextStyle(fontWeight: FontWeight.w600)),
+                    selected: _currentIndex == 7,
+                    selectedColor: colors.accent,
+                    onTap: () {
+                      Navigator.pop(context);
+                      setState(() => _currentIndex = 7);
                     },
                   ),
                 ],
@@ -375,9 +388,13 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
         children: screens,
       ),
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex < 5 ? _currentIndex : 0,
+        selectedIndex: _currentIndex == 3 ? 2 : (_currentIndex == 0 ? 0 : (_currentIndex == 1 ? 1 : (_currentIndex == 4 ? 3 : (_currentIndex == 5 ? 4 : 0)))),
         onDestinationSelected: (idx) {
-          setState(() => _currentIndex = idx);
+          if (idx == 0) setState(() => _currentIndex = 0);
+          if (idx == 1) setState(() => _currentIndex = 1);
+          if (idx == 2) setState(() => _currentIndex = 3); // AI Студия
+          if (idx == 3) setState(() => _currentIndex = 4); // Каналы
+          if (idx == 4) setState(() => _currentIndex = 5); // Бренд
         },
         destinations: [
           const NavigationDestination(
@@ -394,8 +411,8 @@ class _MobileMainScaffoldState extends ConsumerState<MobileMainScaffold> {
             label: 'Календарь',
           ),
           const NavigationDestination(
-            icon: AppIcon(AppIcons.sparkles, size: 22),
-            label: 'Создать',
+            icon: Icon(Icons.auto_awesome, size: 22),
+            label: 'AI Студия',
           ),
           const NavigationDestination(
             icon: AppIcon(AppIcons.share, size: 22),

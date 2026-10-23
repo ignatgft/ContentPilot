@@ -27,6 +27,7 @@ export const Header: React.FC = () => {
   const navItems = [
     { name: 'Кампании', path: '/' },
     { name: 'Календарь', path: '/calendar' },
+    { name: 'AI Студия', path: '/creative' },
     { name: 'Бренд', path: '/brand' },
     { name: 'Каналы', path: '/channels' },
     { name: 'Аналитика', path: '/analytics' },

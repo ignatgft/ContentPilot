@@ -29,6 +29,10 @@ app:
     refresh-token-expiration-ms: 604800000 # 7 days
   claude:
     api-key: ${CLAUDE_API_KEY:}
+  openai:
+    api-key: ${OPENAI_API_KEY:}
+  creative:
+    storage-dir: ${CREATIVE_STORAGE_DIR:./uploads/creative}
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
 

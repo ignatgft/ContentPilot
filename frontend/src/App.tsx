@@ -11,6 +11,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { ChannelsPage } from './pages/ChannelsPage';
 import { AnalyticsPage } from './pages/AnalyticsPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { CreativeStudioPage } from './pages/CreativeStudioPage';
 
 const AppContent: React.FC = () => {
   const { user, isLoading } = useAuth();
@@ -35,6 +36,7 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<CampaignGoalPage />} />
           <Route path="/campaigns/:id" element={<CampaignDetailsPage />} />
           <Route path="/calendar" element={<CalendarPage />} />
+          <Route path="/creative" element={<CreativeStudioPage />} />
           <Route path="/brand" element={<BrandOnboardingPage />} />
           <Route path="/channels" element={<ChannelsPage />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
