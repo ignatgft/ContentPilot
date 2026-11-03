@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<network-security-config>
-  <!-- ТОЛЬКО debug: разрешает http к локальному бэкенду. В release использовать https. -->
-  <base-config cleartextTrafficPermitted="true"/>
-</network-security-config>

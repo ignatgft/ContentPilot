@@ -5,6 +5,7 @@ import java.util.Optional;
 import java.util.List;
 
 public interface BrandRepository extends JpaRepository<Brand, Long> {
-    Optional<Brand> findByUserId(Long userId);
+    /** Legacy dev databases may hold duplicate brand rows per user — always take the newest. */
+    Optional<Brand> findFirstByUserIdOrderByIdDesc(Long userId);
     List<Brand> findAllByUserId(Long userId);
 }

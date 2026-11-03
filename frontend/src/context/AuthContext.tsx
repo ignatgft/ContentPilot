@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { apiRequest } from '../api/client';
+import { apiRequest, SESSION_EXPIRED_EVENT } from '../api/client';
 
 export interface User {
   id: number;
@@ -42,6 +42,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     loadUser();
   }, [token]);
+
+  useEffect(() => {
+    const onSessionExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onSessionExpired);
+  }, []);
 
   const login = async (email: string, password: string) => {
     const data = await apiRequest<{ token: string; user: User }>('/auth/login', {

@@ -27,5 +27,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
         registry.addResourceHandler("/uploads/creative/**")
                 .addResourceLocations(absolutePath);
+
+        // Serve the whole uploads tree from the parent folder so any
+        // storage sub-directory resolves through the same public URL space.
+        String uploadsRoot = Paths.get(storageDir).toAbsolutePath().getParent()
+                .toUri().toString();
+        if (!uploadsRoot.endsWith("/")) {
+            uploadsRoot += "/";
+        }
+
+        registry.addResourceHandler("/uploads/**")
+                .addResourceLocations(uploadsRoot);
     }
 }

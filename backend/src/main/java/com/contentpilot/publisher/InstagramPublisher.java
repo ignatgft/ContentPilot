@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -32,8 +31,8 @@ public class InstagramPublisher implements Publisher {
                 .supportedMediaTypes(List.of("IMAGE", "VIDEO"))
                 .requiresPublicMediaUrl(true)
                 .requiresAppAudit(true)
-                .livePublishSupported(true)
-                .auditNotice("До прохождения верификации Meta работает только на аккаунтах тестировщиков.")
+                .livePublishSupported(false)
+                .auditNotice("Публикация через Meta Graph API доступна после прохождения аудита приложения. Посты формируются в режиме «Готово к публикации».")
                 .build();
     }
 
@@ -46,37 +45,23 @@ public class InstagramPublisher implements Publisher {
     public boolean publish(Post post) {
         int attempt = publishLogRepository.findByPostIdOrderByCreatedAtDesc(post.getId()).size() + 1;
 
-        // If mediaUrl is null, set READY_MANUAL for user download as per Section 1 & 4.3
-        if (post.getMediaUrl() == null || post.getMediaUrl().isBlank()) {
-            publishLogRepository.save(PublishLog.builder()
-                    .post(post)
-                    .attempt(attempt)
-                    .result("SUCCESS")
-                    .message("Режим «Готово к публикации»: текст и медиа подготовлены к ручной выгрузке.")
-                    .build());
-
-            post.setStatus("READY_MANUAL");
-            postRepository.save(post);
-            return true;
-        }
-
+        // Publishing through the graph API requires an approved Meta app + linked business account.
+        // Until then we honestly hand the prepared post over for manual publishing.
         publishLogRepository.save(PublishLog.builder()
                 .post(post)
                 .attempt(attempt)
-                .result("SUCCESS")
-                .message("Опубликован пост/Reels в Instagram (тестовый аккаунт Graph API)")
+                .result("READY_MANUAL")
+                .message("Graph API ожидает аудита Meta: текст и медиа подготовлены для ручной публикации в Instagram.")
                 .build());
 
-        post.setStatus("PUBLISHED");
-        post.setPublishedAt(OffsetDateTime.now());
-        post.setError(null);
+        post.setStatus("READY_MANUAL");
         postRepository.save(post);
         return true;
     }
 
     @Override
     public Map<String, Integer> fetchMetrics(Post post) {
-        return Map.of("views", 320, "reactions", 38, "clicks", 15);
+        return Map.of();
     }
 
     @Override

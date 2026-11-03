@@ -43,7 +43,9 @@ public class TelegramPublisher implements Publisher {
 
     @Override
     public Map<String, Integer> fetchMetrics(Post post) {
-        return Map.of("views", 142, "reactions", 18, "clicks", 7);
+        // Telegram Bot API does not expose channel post views/reactions without admin statistics privileges.
+        // Real metrics collection is added by integrations that have read access (e.g. MTProto clients).
+        return Map.of();
     }
 
     @Override

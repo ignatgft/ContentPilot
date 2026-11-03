@@ -1,6 +1,5 @@
 package com.contentpilot.analytics;
 
-import com.contentpilot.brand.Brand;
 import com.contentpilot.brand.BrandRepository;
 import com.contentpilot.post.Post;
 import com.contentpilot.post.PostRepository;
@@ -9,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -84,23 +85,16 @@ public class AnalyticsService {
                     .totalReactions(0)
                     .totalClicks(0)
                     .hasData(false)
-                    .summaryMessage("Публикации вышли в эфир. Сбор реальных показателей из подключенных каналов в процессе...")
+                    .summaryMessage("Публикации вышли в эфир. Аналитика строится только на показателях, доступных API площадок — как только площадка отдаёт статистику, она появится здесь.")
                     .recommendations(List.of(
-                            "Убедитесь, что бот или аккаунт имеет права на чтение статистики в соцсетях.",
-                            "Публикации с медиа-ассетами из Creative Studio привлекают до 40% больше внимания."
+                            "Telegram Bot API не отдаёт просмотры канала — метрики появятся, когда подключенные площадки откроют доступ к статистике.",
+                            "Используйте раздел «Кампании», чтобы воспроизвести контент с наибольшим откликом."
                     ))
                     .topPosts(List.of())
                     .build();
         }
 
-        List<String> recommendations = new ArrayList<>();
-        if (totalViews > 0) {
-            recommendations.add("Публикации с указанием цен и фото меню показывают повышенный процент вовлечения.");
-            recommendations.add("Оптимальное время публикации для вашей аудитории — утренние часы с 08:30 до 10:00.");
-            recommendations.add("Рекомендуется запланировать промо-акцию на пятницу во второй половине дня.");
-        } else {
-            recommendations.add("Данных пока недостаточно для формирования статистических рекомендаций.");
-        }
+        List<String> recommendations = buildDataDrivenRecommendations(posts, metricDetails);
 
         return AnalyticsDto.OverviewResponse.builder()
                 .totalPosts(posts.size())
@@ -109,9 +103,72 @@ public class AnalyticsService {
                 .totalReactions(totalReactions)
                 .totalClicks(totalClicks)
                 .hasData(true)
-                .summaryMessage(String.format("Собрано реальных данных по %d публикациям. Метрики соответствуют активности аудитории.", metricDetails.size()))
+                .summaryMessage(String.format(
+                        "Собрано реальных данных по %d публикациям: %d просмотров, %d реакций, %d переходов.",
+                        metricDetails.size(), totalViews, totalReactions, totalClicks))
                 .recommendations(recommendations)
                 .topPosts(metricDetails)
                 .build();
+    }
+
+    /**
+     * Recommendations are derived strictly from the measured data: no invented benchmarks.
+     */
+    private List<String> buildDataDrivenRecommendations(List<Post> posts, List<AnalyticsDto.PostMetricDetail> metricDetails) {
+        List<String> recommendations = new ArrayList<>();
+
+        long totalViews = metricDetails.stream().mapToLong(AnalyticsDto.PostMetricDetail::getViews).sum();
+        long totalClicks = metricDetails.stream().mapToLong(AnalyticsDto.PostMetricDetail::getClicks).sum();
+        long totalReactions = metricDetails.stream().mapToLong(AnalyticsDto.PostMetricDetail::getReactions).sum();
+
+        // Aggregates per platform
+        Map<String, long[]> byPlatform = new LinkedHashMap<>();
+        for (AnalyticsDto.PostMetricDetail m : metricDetails) {
+            long[] agg = byPlatform.computeIfAbsent(m.getPlatform(), k -> new long[3]);
+            agg[0] += m.getViews();
+            agg[1] += m.getReactions();
+            agg[2] += m.getClicks();
+        }
+
+        byPlatform.entrySet().stream()
+                .sorted((a, b) -> Long.compare(b.getValue()[0], a.getValue()[0]))
+                .findFirst()
+                .ifPresent(best -> recommendations.add(String.format(
+                        "Лидер по охвату — %s: %d просмотров из %d. Увеличьте долю публикаций на этой площадке.",
+                        best.getKey(), best.getValue()[0], totalViews)));
+
+        if (totalViews > 0 && totalClicks > totalReactions) {
+            recommendations.add(String.format(
+                    "Переходы (%d) превышают реакции (%d) — аудитория кликает по ссылкам. Добавляйте кнопки «Смотреть / Заказать» и в следующие публикации.",
+                    totalClicks, totalReactions));
+        } else if (totalReactions > totalClicks) {
+            recommendations.add(String.format(
+                    "Реакции (%d) обгоняют переходы (%d) — усильте призывы к действию (CTA) в текстах и добавьте точные цены из меню бренда.",
+                    totalReactions, totalClicks));
+        }
+
+        long postsWithMedia = posts.stream()
+                .filter(p -> p.getMediaUrl() != null && !p.getMediaUrl().isBlank())
+                .count();
+        if (postsWithMedia == 0) {
+            recommendations.add("В опубликованных постах нет медиа — сгенерируйте визуал в AI Студии и прикрепите к посту перед публикацией.");
+        } else if (postsWithMedia < posts.size()) {
+            recommendations.add(String.format(
+                    "Медиа есть только в %d из %d постов — визуальные публикации собирают больше внимания в лентах.",
+                    postsWithMedia, posts.size()));
+        }
+
+        if (metricDetails.size() >= 3) {
+            AnalyticsDto.PostMetricDetail top = metricDetails.stream()
+                    .max((a, b) -> Long.compare((a.getReactions() + a.getClicks()), (b.getReactions() + b.getClicks())))
+                    .orElse(null);
+            if (top != null && (top.getReactions() + top.getClicks()) > 0) {
+                recommendations.add(String.format(
+                        "Лучший по вовлечению пост — публикация #%d (%s). Создайте следующую кампанию с похожей формулировкой цели.",
+                        top.getPostId(), top.getPlatform()));
+            }
+        }
+
+        return recommendations;
     }
 }

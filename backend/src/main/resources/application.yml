@@ -1,5 +1,7 @@
 server:
   port: 8080
+  error:
+    include-message: always
 
 spring:
   application:
@@ -23,7 +25,9 @@ spring:
     locations: classpath:db/migration
 
 app:
-  demo-mode-enabled: ${DEMO_MODE_ENABLED:false}
+  # Public HTTPS/HTTP origin that reaches this backend from the internet (or LAN).
+  # Used to convert relative /uploads/... media links into absolute URLs for Telegram.
+  public-base-url: ${PUBLIC_BASE_URL:}
   jwt:
     secret: ${JWT_SECRET:contentpilot-hackathon-super-secret-key-32bytes-min-len}
     access-token-expiration-ms: 900000 # 15 minutes
@@ -46,6 +50,11 @@ app:
     storage-dir: ${CREATIVE_STORAGE_DIR:./uploads/creative}
   telegram:
     bot-token: ${TELEGRAM_BOT_TOKEN:}
+  account:
+    # Show the password-reset token directly in the response instead of e-mail
+    # delivery (there is no SMTP integration yet). NEVER enable in production.
+    reveal-reset-token: ${ACCOUNT_REVEAL_RESET_TOKEN:false}
+    reset-token-ttl-minutes: ${ACCOUNT_RESET_TOKEN_TTL_MINUTES:30}
 
 springdoc:
   api-docs:

@@ -6,7 +6,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -30,9 +29,10 @@ public class YoutubePublisher implements Publisher {
                 .displayName("YouTube Shorts")
                 .maxTextLength(5000)
                 .supportedMediaTypes(List.of("VIDEO"))
-                .requiresPublicMediaUrl(false)
-                .requiresAppAudit(false)
-                .livePublishSupported(true)
+                .requiresPublicMediaUrl(true)
+                .requiresAppAudit(true)
+                .livePublishSupported(false)
+                .auditNotice("Загрузка видео через YouTube Data API v3 требует OAuth-авторизации канала. Посты формируются в режиме «Готово к публикации».")
                 .build();
     }
 
@@ -45,23 +45,22 @@ public class YoutubePublisher implements Publisher {
     public boolean publish(Post post) {
         int attempt = publishLogRepository.findByPostIdOrderByCreatedAtDesc(post.getId()).size() + 1;
 
+        // YouTube Data API v3 uploads require an OAuth2 channel grant; without it we do not fake success.
         publishLogRepository.save(PublishLog.builder()
                 .post(post)
                 .attempt(attempt)
-                .result("SUCCESS")
-                .message("Опубликовано видео в YouTube Shorts")
+                .result("READY_MANUAL")
+                .message("YouTube требует OAuth-авторизацию канала: текст и видео подготовлены для ручной загрузки в Shorts.")
                 .build());
 
-        post.setStatus("PUBLISHED");
-        post.setPublishedAt(OffsetDateTime.now());
-        post.setError(null);
+        post.setStatus("READY_MANUAL");
         postRepository.save(post);
         return true;
     }
 
     @Override
     public Map<String, Integer> fetchMetrics(Post post) {
-        return Map.of("views", 430, "reactions", 45, "clicks", 19);
+        return Map.of();
     }
 
     @Override

@@ -18,4 +18,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @Query("SELECT p FROM Post p WHERE p.status = 'SCHEDULED' AND p.scheduledAt <= :now")
     List<Post> findDueForPublishing(@Param("now") OffsetDateTime now);
+
+    @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHING' AND (p.scheduledAt <= :threshold OR p.createdAt <= :threshold)")
+    List<Post> findStalePublishing(@Param("threshold") OffsetDateTime threshold);
 }

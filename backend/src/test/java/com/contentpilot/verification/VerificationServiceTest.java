@@ -45,7 +45,7 @@ class VerificationServiceTest {
                 .id(1L)
                 .name("Coffee Point")
                 .description("Кофейня в центре")
-                .facts("{\"menu\": [{\"name\": \"латте\", \"price\": 320}]}")
+                .facts("{\"menu\": [{\"name\": \"латте\", \"price\": 320}, {\"name\": \"капучино\", \"price\": 220}, {\"name\": \"стрижка\", \"price\": 1800}]}")
                 .build();
 
         campaign = Campaign.builder()
@@ -79,6 +79,7 @@ class VerificationServiceTest {
 
         assertThat(priceCheck).isNotNull();
         assertThat(priceCheck.getStatus()).isEqualTo("PASSED");
+        assertThat(post.getStatus()).isEqualTo("SCHEDULED");
     }
 
     @Test
@@ -105,6 +106,110 @@ class VerificationServiceTest {
 
         assertThat(priceCheck).isNotNull();
         assertThat(priceCheck.getStatus()).isEqualTo("NEEDS_REVIEW");
+        assertThat(post.getStatus()).isEqualTo("NEEDS_REVIEW");
+    }
+
+    @Test
+    @DisplayName("Should correctly verify multiple products and prices in a single post without false alarms")
+    void testMultiProductPriceProximityMatches() {
+        Post post = Post.builder()
+                .id(12L)
+                .campaign(campaign)
+                .platform("TELEGRAM")
+                .text("Попробуйте наш капучино за 220 ₽ или нежный латте за 320 руб!")
+                .status("DRAFT")
+                .verificationResults(new ArrayList<>())
+                .build();
+
+        when(verificationResultRepository.save(any(VerificationResult.class))).thenAnswer(i -> i.getArgument(0));
+
+        List<VerificationResult> results = verificationService.verifyPost(post);
+
+        VerificationResult priceCheck = results.stream()
+                .filter(r -> "PRICE_CHECK".equals(r.getCheckType()))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(priceCheck).isNotNull();
+        assertThat(priceCheck.getStatus()).isEqualTo("PASSED");
+        assertThat(post.getStatus()).isEqualTo("SCHEDULED");
+    }
+
+    @Test
+    @DisplayName("Should handle thousands separators formatted as 1 800 ₽")
+    void testThousandsSeparatorMatches() {
+        Post post = Post.builder()
+                .id(13L)
+                .campaign(campaign)
+                .platform("TELEGRAM")
+                .text("Стильная мужская стрижка всего за 1 800 ₽ в наших салонах")
+                .status("DRAFT")
+                .verificationResults(new ArrayList<>())
+                .build();
+
+        when(verificationResultRepository.save(any(VerificationResult.class))).thenAnswer(i -> i.getArgument(0));
+
+        List<VerificationResult> results = verificationService.verifyPost(post);
+
+        VerificationResult priceCheck = results.stream()
+                .filter(r -> "PRICE_CHECK".equals(r.getCheckType()))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(priceCheck).isNotNull();
+        assertThat(priceCheck.getStatus()).isEqualTo("PASSED");
+    }
+
+    @Test
+    @DisplayName("Should flag forbidden stop words with NEEDS_REVIEW")
+    void testStopWordsFlagged() {
+        Post post = Post.builder()
+                .id(14L)
+                .campaign(campaign)
+                .platform("TELEGRAM")
+                .text("Наш кофе гарантирует 100% гарантия бодрости на весь день")
+                .status("DRAFT")
+                .verificationResults(new ArrayList<>())
+                .build();
+
+        when(verificationResultRepository.save(any(VerificationResult.class))).thenAnswer(i -> i.getArgument(0));
+
+        List<VerificationResult> results = verificationService.verifyPost(post);
+
+        VerificationResult factsCheck = results.stream()
+                .filter(r -> "BRAND_FACTS".equals(r.getCheckType()))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(factsCheck).isNotNull();
+        assertThat(factsCheck.getStatus()).isEqualTo("NEEDS_REVIEW");
+        assertThat(post.getStatus()).isEqualTo("NEEDS_REVIEW");
+    }
+
+    @Test
+    @DisplayName("Should fail platform format check when Telegram text exceeds 4096 characters")
+    void testPlatformLimitExceeded() {
+        String longText = "A".repeat(4100);
+        Post post = Post.builder()
+                .id(15L)
+                .campaign(campaign)
+                .platform("TELEGRAM")
+                .text(longText)
+                .status("DRAFT")
+                .verificationResults(new ArrayList<>())
+                .build();
+
+        when(verificationResultRepository.save(any(VerificationResult.class))).thenAnswer(i -> i.getArgument(0));
+
+        List<VerificationResult> results = verificationService.verifyPost(post);
+
+        VerificationResult formatCheck = results.stream()
+                .filter(r -> "PLATFORM_FORMAT".equals(r.getCheckType()))
+                .findFirst()
+                .orElse(null);
+
+        assertThat(formatCheck).isNotNull();
+        assertThat(formatCheck.getStatus()).isEqualTo("FAILED");
         assertThat(post.getStatus()).isEqualTo("NEEDS_REVIEW");
     }
 }

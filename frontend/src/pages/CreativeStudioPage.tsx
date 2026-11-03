@@ -1,17 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../api/client';
-import { 
-  Sparkles, 
-  Image as ImageIcon, 
-  Video as VideoIcon, 
-  FolderArchive, 
-  Download, 
-  Send, 
-  CheckCircle2, 
-  Layers, 
-  Sliders, 
-  Play, 
-  RefreshCw
+import {
+  Sparkles,
+  Image as ImageIcon,
+  Video as VideoIcon,
+  Library,
+  Download,
+  Send,
+  CheckCircle2,
+  Layers,
+  Sliders,
+  Play,
+  RefreshCw,
 } from 'lucide-react';
 
 interface CreativeTaskResponse {
@@ -57,22 +57,32 @@ interface CreativePreset {
   category: string;
 }
 
+const STYLE_OPTIONS = [
+  { value: 'STUDIO_COMMERCIAL', label: 'Студийное фото (Чистый свет)' },
+  { value: 'DARK_LUXURY', label: 'Тёмный люкс (Премиум-неоны)' },
+  { value: 'VIBRANT_POP', label: 'Яркий поп (Контрастные цвета)' },
+  { value: 'MINIMALIST', label: 'Минимализм & Эко' },
+  { value: 'COFFEE_AESTHETIC', label: 'Тёплый уютный свет' },
+];
+
+const PLATFORM_OPTIONS = ['TELEGRAM', 'VK', 'YOUTUBE', 'INSTAGRAM', 'TIKTOK'];
+
 export const CreativeStudioPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'IMAGE' | 'VIDEO' | 'LIBRARY'>('IMAGE');
-  
+
   // Form State
-  const [prompt, setPrompt] = useState('Чашка капучино с нежным латте-артом на деревянном столике у окна кофейни');
-  const [style, setStyle] = useState('COFFEE_AESTHETIC');
+  const [prompt, setPrompt] = useState('');
+  const [style, setStyle] = useState('STUDIO_COMMERCIAL');
   const [aspectRatio, setAspectRatio] = useState('1:1');
   const [durationSeconds, setDurationSeconds] = useState(5);
   const [cameraMotion, setCameraMotion] = useState('SLOW_ZOOM_IN');
-  
+
   // Deterministic Overlay state
   const [enableOverlay, setEnableOverlay] = useState(true);
-  const [brandName, setBrandName] = useState('COFFEE PILOT');
-  const [price, setPrice] = useState('320 ₽');
-  const [badgeText, setBadgeText] = useState('Сезонная новинка');
-  const [ctaText, setCtaText] = useState('Попробовать');
+  const [brandName, setBrandName] = useState('');
+  const [price, setPrice] = useState('');
+  const [badgeText, setBadgeText] = useState('Хит продаж');
+  const [ctaText, setCtaText] = useState('Заказать');
   const [overlayPosition, setOverlayPosition] = useState('BOTTOM_CENTER');
 
   // Processing & Results
@@ -82,19 +92,29 @@ export const CreativeStudioPage: React.FC = () => {
   const [mediaList, setMediaList] = useState<MediaAssetResponse[]>([]);
   const [presets, setPresets] = useState<CreativePreset[]>([]);
   const [libraryFilter, setLibraryFilter] = useState<'ALL' | 'IMAGE' | 'VIDEO'>('ALL');
-  
+  const [generationError, setGenerationError] = useState<string | null>(null);
+
   // Attach to post modal
   const [isAttachModalOpen, setIsAttachModalOpen] = useState(false);
   const [attachTargetMedia, setAttachTargetMedia] = useState<MediaAssetResponse | null>(null);
   const [targetPlatform, setTargetPlatform] = useState('TELEGRAM');
   const [postCaption, setPostCaption] = useState('');
-  const [attachSuccessMessage, setAttachSuccessMessage] = useState('');
+  const [attachSuccessMessage, setAttachSuccessMessage] = useState<string | null>(null);
+  const [attachError, setAttachError] = useState<string | null>(null);
+
+  const taskPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load brand memory, presets & media gallery dynamically
   useEffect(() => {
     loadBrandInfo();
     loadPresets();
     loadMedia();
+    // Cleanup polling on unmount
+    return () => {
+      if (taskPollRef.current) {
+        clearInterval(taskPollRef.current);
+      }
+    };
   }, []);
 
   const loadBrandInfo = async () => {
@@ -111,7 +131,9 @@ export const CreativeStudioPage: React.FC = () => {
                 setPrice(`${firstItem.price} ₽`);
               }
               if (firstItem.name) {
-                setPrompt(`Профессиональная фотосъемка блюда ${firstItem.name}, изысканная подача, естественный мягкий свет`);
+                setPrompt(
+                  `Профессиональная студийная съёмка позиции ${firstItem.name}, аппетитная подача, мягкий естественный свет`
+                );
               }
             }
           } catch (ignored) {}
@@ -151,8 +173,29 @@ export const CreativeStudioPage: React.FC = () => {
     }
   };
 
+  const markCompleted = (task: CreativeTaskResponse) => {
+    if (task.status === 'COMPLETED' && task.resultUrl) {
+      // Real asset comes from the backend media registry — no fabricated metadata
+      refreshMediaAndPick(task.resultUrl);
+    }
+  };
+
+  const refreshMediaAndPick = async (resultUrl: string) => {
+    try {
+      const data = await apiRequest<MediaAssetResponse[]>('/creative/media');
+      setMediaList(data);
+      const found = data.find(m => m.url === resultUrl);
+      if (found) {
+        setLatestMedia(found);
+      }
+    } catch (e) {
+      console.warn('Media refresh failed', e);
+    }
+  };
+
   const handleGenerateImage = async () => {
     setIsGenerating(true);
+    setGenerationError(null);
     setActiveTask(null);
     setLatestMedia(null);
     try {
@@ -167,28 +210,14 @@ export const CreativeStudioPage: React.FC = () => {
           price,
           badgeText,
           ctaText,
-          overlayPosition
-        })
+          overlayPosition,
+        }),
       });
 
       setActiveTask(res);
-      if (res.status === 'COMPLETED' && res.resultUrl) {
-        setLatestMedia({
-          id: Date.now(),
-          mediaType: 'IMAGE',
-          url: res.resultUrl,
-          thumbnailUrl: res.resultUrl,
-          prompt: res.prompt,
-          style: res.style,
-          aspectRatio: res.aspectRatio,
-          width: 1080,
-          height: 1080,
-          createdAt: new Date().toISOString()
-        });
-        loadMedia();
-      }
+      markCompleted(res);
     } catch (err: any) {
-      alert(err.message || 'Ошибка генерации изображения');
+      setGenerationError(err.message || 'Ошибка генерации изображения');
     } finally {
       setIsGenerating(false);
     }
@@ -196,6 +225,7 @@ export const CreativeStudioPage: React.FC = () => {
 
   const handleGenerateVideo = async () => {
     setIsGenerating(true);
+    setGenerationError(null);
     setActiveTask(null);
     setLatestMedia(null);
     try {
@@ -210,74 +240,86 @@ export const CreativeStudioPage: React.FC = () => {
           enableOverlay,
           brandName,
           price,
-          badgeText
-        })
+          badgeText,
+        }),
       });
 
       setActiveTask(task);
       pollVideoTask(task.id);
     } catch (err: any) {
-      alert(err.message || 'Ошибка создания видео');
+      setGenerationError(err.message || 'Ошибка создания видео');
       setIsGenerating(false);
     }
   };
 
-  const pollVideoTask = async (taskId: number) => {
-    const interval = setInterval(async () => {
+  const pollVideoTask = (taskId: number) => {
+    let attempts = 0;
+    const MAX_ATTEMPTS = 120; // ~5 minutes with 2.5s interval
+
+    if (taskPollRef.current) {
+      clearInterval(taskPollRef.current);
+    }
+
+    taskPollRef.current = setInterval(async () => {
+      attempts += 1;
       try {
         const updated = await apiRequest<CreativeTaskResponse>(`/creative/tasks/${taskId}`);
         setActiveTask(updated);
 
         if (updated.status === 'COMPLETED' || updated.status === 'FAILED') {
-          clearInterval(interval);
+          stopPolling();
           setIsGenerating(false);
-          if (updated.status === 'COMPLETED' && updated.resultUrl) {
-            setLatestMedia({
-              id: Date.now(),
-              mediaType: 'VIDEO',
-              url: updated.resultUrl,
-              thumbnailUrl: updated.resultUrl,
-              prompt: updated.prompt,
-              style: updated.style,
-              aspectRatio: updated.aspectRatio,
-              width: 1080,
-              height: 1920,
-              durationSeconds,
-              createdAt: new Date().toISOString()
-            });
-            loadMedia();
+          if (updated.status === 'FAILED') {
+            setGenerationError(updated.errorMessage || 'Генерация видео завершилась ошибкой');
+          } else {
+            markCompleted(updated);
           }
+          return;
         }
-      } catch (e) {
-        clearInterval(interval);
+
+        if (attempts >= MAX_ATTEMPTS) {
+          stopPolling();
+          setIsGenerating(false);
+          setGenerationError('Генерация заняла слишком много времени. Попробуйте ещё раз.');
+        }
+      } catch (e: any) {
+        stopPolling();
         setIsGenerating(false);
+        setGenerationError(e?.message || 'Ошибка проверки статуса задачи');
       }
     }, 2500);
   };
 
+  const stopPolling = () => {
+    if (taskPollRef.current) {
+      clearInterval(taskPollRef.current);
+      taskPollRef.current = null;
+    }
+  };
+
   const handleOpenAttachModal = (asset: MediaAssetResponse) => {
     setAttachTargetMedia(asset);
-    setPostCaption(`🔥 ${asset.prompt}\n\nСпециальное предложение от ${brandName}!`);
-    setAttachSuccessMessage('');
+    setPostCaption(`${asset.prompt}\n\nСпециальное предложение от ${brandName}`.trim());
+    setAttachSuccessMessage(null);
+    setAttachError(null);
     setIsAttachModalOpen(true);
   };
 
   const handleAttachSubmit = async () => {
     if (!attachTargetMedia) return;
+    setAttachError(null);
     try {
       await apiRequest(`/creative/media/${attachTargetMedia.id}/attach-post`, {
         method: 'POST',
         body: JSON.stringify({
           platform: targetPlatform,
-          postText: postCaption
-        })
+          postText: postCaption,
+        }),
       });
-      setAttachSuccessMessage('✅ Публикация успешно создана в кампаниях с этим медиафайлом!');
-      setTimeout(() => {
-        setIsAttachModalOpen(false);
-      }, 1500);
+      setAttachSuccessMessage('Публикация создана! Управляйте ею в разделе «Кампании» или «Календарь».');
+      loadMedia();
     } catch (e: any) {
-      alert(e.message || 'Ошибка прикрепления к посту');
+      setAttachError(e.message || 'Ошибка прикрепления к посту');
     }
   };
 
@@ -287,58 +329,42 @@ export const CreativeStudioPage: React.FC = () => {
     return true;
   });
 
+  const tabClass = (tab: string) =>
+    `flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+      activeTab === tab
+        ? 'bg-[var(--accent)] text-[var(--on-accent)] shadow-sm'
+        : 'text-[var(--muted)] hover:text-[var(--ink)]'
+    }`;
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-page-enter">
       {/* Page Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-[var(--border)] pb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center">
-              <Sparkles size={22} />
-            </div>
-            <div>
-              <h1 className="text-2xl font-black text-[var(--ink)] tracking-tight">AI Creative Studio</h1>
-              <p className="text-sm text-[var(--muted)]">
-                Генерация рекламных визуалов, продуктовых фото и коротких роликов для соцсетей
-              </p>
-            </div>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[var(--chip-bg)] border border-[var(--border)] text-[var(--chip-text)] flex items-center justify-center shrink-0">
+            <Sparkles size={22} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-[var(--ink)] tracking-tight">AI Creative Studio</h1>
+            <p className="text-sm text-[var(--muted)]">
+              Генерация рекламных визуалов, продуктовых фото и коротких роликов для соцсетей
+            </p>
           </div>
         </div>
 
         {/* Tab Controls */}
-        <div className="flex items-center bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)] shadow-sm">
-          <button
-            onClick={() => setActiveTab('IMAGE')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'IMAGE' 
-                ? 'bg-amber-500 text-white shadow-sm' 
-                : 'text-[var(--muted)] hover:text-[var(--ink)]'
-            }`}
-          >
+        <div className="flex items-center bg-[var(--surface)] p-1 rounded-xl border border-[var(--border)] shadow-sm overflow-x-auto">
+          <button onClick={() => setActiveTab('IMAGE')} className={tabClass('IMAGE')}>
             <ImageIcon size={16} />
-            <span>Фото & Баннеры</span>
+            <span className="whitespace-nowrap">Фото & Баннеры</span>
           </button>
-          <button
-            onClick={() => setActiveTab('VIDEO')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'VIDEO' 
-                ? 'bg-amber-500 text-white shadow-sm' 
-                : 'text-[var(--muted)] hover:text-[var(--ink)]'
-            }`}
-          >
+          <button onClick={() => setActiveTab('VIDEO')} className={tabClass('VIDEO')}>
             <VideoIcon size={16} />
-            <span>Reels & Видео</span>
+            <span className="whitespace-nowrap">Reels & Видео</span>
           </button>
-          <button
-            onClick={() => { setActiveTab('LIBRARY'); loadMedia(); }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-              activeTab === 'LIBRARY' 
-                ? 'bg-amber-500 text-white shadow-sm' 
-                : 'text-[var(--muted)] hover:text-[var(--ink)]'
-            }`}
-          >
-            <FolderArchive size={16} />
-            <span>Медиатека ({mediaList.length})</span>
+          <button onClick={() => { setActiveTab('LIBRARY'); loadMedia(); }} className={tabClass('LIBRARY')}>
+            <Library size={16} />
+            <span className="whitespace-nowrap">Медиатека ({mediaList.length})</span>
           </button>
         </div>
       </div>
@@ -348,10 +374,9 @@ export const CreativeStudioPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column: Controls & Configuration */}
           <div className="lg:col-span-7 space-y-6">
-            
             {/* Presets Bar */}
             {presets.length > 0 && (
-              <div className="bg-[var(--surface)] p-4 rounded-2xl border border-[var(--border)] space-y-3">
+              <div className="card p-4 space-y-3">
                 <div className="text-xs font-bold text-[var(--muted)] uppercase tracking-wider flex items-center gap-1.5">
                   <Sliders size={14} />
                   <span>Быстрые пресеты бизнеса</span>
@@ -361,10 +386,11 @@ export const CreativeStudioPage: React.FC = () => {
                     <button
                       key={p.id}
                       onClick={() => handleApplyPreset(p)}
-                      className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] hover:border-amber-500/50 hover:bg-amber-500/5 text-xs font-semibold text-[var(--ink)] transition-colors flex items-center gap-1.5"
+                      title={p.description}
+                      className="px-3 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--bg)] hover:border-[var(--accent)] text-xs font-semibold text-[var(--ink)] transition-colors flex items-center gap-1.5 cursor-pointer"
                     >
                       <span>{p.title}</span>
-                      <span className="text-[10px] text-amber-500 font-bold bg-amber-500/10 px-1.5 py-0.5 rounded">
+                      <span className="text-[10px] text-[var(--accent)] font-bold bg-[var(--chip-bg)] px-1.5 py-0.5 rounded">
                         {p.defaultAspectRatio}
                       </span>
                     </button>
@@ -374,7 +400,7 @@ export const CreativeStudioPage: React.FC = () => {
             )}
 
             {/* Prompt Formulation */}
-            <div className="bg-[var(--surface)] p-5 rounded-2xl border border-[var(--border)] space-y-4">
+            <div className="card p-5 space-y-4">
               <label className="block text-sm font-bold text-[var(--ink)]">
                 Описание рекламного визуала (Промпт)
               </label>
@@ -382,8 +408,8 @@ export const CreativeStudioPage: React.FC = () => {
                 rows={3}
                 value={prompt}
                 onChange={e => setPrompt(e.target.value)}
-                placeholder="Например: Нежный черничный чизкейк со свежими ягодами и мятой на матовой тарелке..."
-                className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all resize-none"
+                placeholder="Например: профессиональная съёмка продукта на чистом фоне, мягкий свет..."
+                className="w-full px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm focus:outline-none focus:border-[var(--accent)] transition-all resize-none"
               />
 
               {/* Style & Aspect Ratio Row */}
@@ -395,13 +421,13 @@ export const CreativeStudioPage: React.FC = () => {
                   <select
                     value={style}
                     onChange={e => setStyle(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm font-medium focus:outline-none focus:border-[var(--accent)]"
                   >
-                    <option value="COFFEE_AESTHETIC">☕ Кофейная эстетика (Тёплый свет)</option>
-                    <option value="STUDIO_COMMERCIAL">📸 Студийное фото (Чистый белый)</option>
-                    <option value="DARK_LUXURY">✨ Тёмный люкс (Премиум неоны)</option>
-                    <option value="VIBRANT_POP">🎨 Яркий поп (Контрастные цвета)</option>
-                    <option value="MINIMALIST">🌿 Минимализм & Эко</option>
+                    {STYLE_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -412,7 +438,7 @@ export const CreativeStudioPage: React.FC = () => {
                   <select
                     value={aspectRatio}
                     onChange={e => setAspectRatio(e.target.value)}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm font-medium focus:outline-none focus:border-[var(--accent)]"
                   >
                     <option value="1:1">1:1 Квадрат (Лента VK, Telegram, Inst)</option>
                     <option value="9:16">9:16 Вертикальный (Shorts, Reels, Stories)</option>
@@ -435,7 +461,7 @@ export const CreativeStudioPage: React.FC = () => {
                       max={12}
                       value={durationSeconds}
                       onChange={e => setDurationSeconds(Number(e.target.value))}
-                      className="w-full accent-amber-500"
+                      className="w-full accent-[var(--accent)]"
                     />
                   </div>
                   <div>
@@ -445,7 +471,7 @@ export const CreativeStudioPage: React.FC = () => {
                     <select
                       value={cameraMotion}
                       onChange={e => setCameraMotion(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] text-sm font-medium focus:outline-none focus:border-[var(--accent)]"
                     >
                       <option value="SLOW_ZOOM_IN">Плавный наезд (Ken Burns Zoom)</option>
                       <option value="PAN_RIGHT">Панорама слева направо</option>
@@ -456,11 +482,11 @@ export const CreativeStudioPage: React.FC = () => {
               )}
             </div>
 
-            {/* Deterministic Overlay Panel (Section 7 from Tech Spec) */}
-            <div className="bg-[var(--surface)] p-5 rounded-2xl border border-[var(--border)] space-y-4">
-              <div className="flex items-center justify-between">
+            {/* Deterministic Overlay Panel */}
+            <div className="card p-5 space-y-4">
+              <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
-                  <Layers size={18} className="text-amber-500" />
+                  <Layers size={18} className="text-[var(--accent)] shrink-0" />
                   <div>
                     <h3 className="text-sm font-bold text-[var(--ink)]">
                       Детерминированный оверлей (Бренд, Цены, Бейджи)
@@ -470,14 +496,14 @@ export const CreativeStudioPage: React.FC = () => {
                     </p>
                   </div>
                 </div>
-                <label className="relative inline-flex items-center cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
                   <input
                     type="checkbox"
                     checked={enableOverlay}
                     onChange={e => setEnableOverlay(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                  <div className="w-11 h-6 bg-[var(--border)] rounded-full peer focus:outline-none after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all peer-checked:bg-[var(--accent)] peer-checked:after:translate-x-[20px]"></div>
                 </label>
               </div>
 
@@ -491,21 +517,24 @@ export const CreativeStudioPage: React.FC = () => {
                       type="text"
                       value={brandName}
                       onChange={e => setBrandName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      placeholder="Название из профиля бренда"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
 
                   <div>
                     <label className="block text-xs font-bold text-[var(--muted)] uppercase mb-1 flex items-center justify-between">
                       <span>Точная цена</span>
-                      <span className="text-[10px] text-amber-500 font-bold">Из меню</span>
+                      {price && (
+                        <span className="text-[10px] text-[var(--success)] font-bold">Из меню</span>
+                      )}
                     </label>
                     <input
                       type="text"
                       value={price}
                       onChange={e => setPrice(e.target.value)}
                       placeholder="Например: 320 ₽"
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-bold text-amber-500 focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-bold text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
 
@@ -518,7 +547,7 @@ export const CreativeStudioPage: React.FC = () => {
                       value={badgeText}
                       onChange={e => setBadgeText(e.target.value)}
                       placeholder="Например: Хит продаж"
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
 
@@ -531,7 +560,7 @@ export const CreativeStudioPage: React.FC = () => {
                       value={ctaText}
                       onChange={e => setCtaText(e.target.value)}
                       placeholder="Например: Попробовать"
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-semibold text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
                     />
                   </div>
 
@@ -542,7 +571,7 @@ export const CreativeStudioPage: React.FC = () => {
                     <select
                       value={overlayPosition}
                       onChange={e => setOverlayPosition(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-medium text-[var(--ink)] focus:outline-none focus:ring-1 focus:ring-amber-500"
+                      className="w-full px-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--bg)] text-xs font-medium text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
                     >
                       <option value="BOTTOM_CENTER">Снизу по центру</option>
                       <option value="BOTTOM_LEFT">Снизу слева</option>
@@ -553,24 +582,35 @@ export const CreativeStudioPage: React.FC = () => {
               )}
             </div>
 
+            {/* Error Banner */}
+            {generationError && (
+              <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold flex items-start gap-2">
+                {generationError}
+              </div>
+            )}
+
             {/* Submit Action Button */}
             <button
               onClick={activeTab === 'IMAGE' ? handleGenerateImage : handleGenerateVideo}
               disabled={isGenerating || !prompt.trim()}
-              className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-bold text-base shadow-lg shadow-amber-500/25 flex items-center justify-center gap-3 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none cursor-pointer"
+              className="btn-primary w-full py-4 px-6 rounded-2xl text-base cursor-pointer"
             >
               {isGenerating ? (
                 <>
                   <RefreshCw size={20} className="animate-spin" />
                   <span>
-                    {activeTab === 'IMAGE' ? 'Создание визуального креатива...' : 'Рендеринг видеоролика...'}
+                    {activeTab === 'IMAGE'
+                      ? 'Создание визуального креатива...'
+                      : 'Рендеринг видеоролика...'}
                   </span>
                 </>
               ) : (
                 <>
                   <Sparkles size={20} />
                   <span>
-                    {activeTab === 'IMAGE' ? 'Сгенерировать рекламный визуал' : 'Создать промо-ролик Reels'}
+                    {activeTab === 'IMAGE'
+                      ? 'Сгенерировать рекламный визуал'
+                      : 'Создать промо-ролик Reels'}
                   </span>
                 </>
               )}
@@ -579,12 +619,11 @@ export const CreativeStudioPage: React.FC = () => {
 
           {/* Right Column: Live Result & Preview */}
           <div className="lg:col-span-5 space-y-6">
-            <div className="bg-[var(--surface)] p-6 rounded-2xl border border-[var(--border)] flex flex-col items-center justify-center min-h-[480px]">
-              
+            <div className="card p-6 flex flex-col items-center justify-center min-h-[420px] sm:min-h-[480px]">
               {/* State: In Progress */}
               {isGenerating && (
                 <div className="text-center space-y-4 max-w-xs">
-                  <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-500 flex items-center justify-center mx-auto animate-pulse">
+                  <div className="w-16 h-16 rounded-2xl bg-[var(--chip-bg)] text-[var(--chip-text)] flex items-center justify-center mx-auto animate-pulse">
                     <Sparkles size={32} />
                   </div>
                   <h3 className="text-lg font-bold text-[var(--ink)]">Генерация креатива</h3>
@@ -594,7 +633,7 @@ export const CreativeStudioPage: React.FC = () => {
                   {activeTask && (
                     <div className="w-full bg-[var(--bg)] rounded-full h-2 overflow-hidden border border-[var(--border)]">
                       <div
-                        className="bg-amber-500 h-2 rounded-full transition-all duration-500"
+                        className="bg-[var(--accent)] h-2 rounded-full transition-all duration-500"
                         style={{ width: `${activeTask.progress}%` }}
                       />
                     </div>
@@ -605,7 +644,7 @@ export const CreativeStudioPage: React.FC = () => {
               {/* State: Result Available */}
               {!isGenerating && latestMedia && (
                 <div className="w-full space-y-4">
-                  <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-black/40 group shadow-md flex items-center justify-center max-h-[500px]">
+                  <div className="relative rounded-2xl overflow-hidden border border-[var(--border)] bg-black/40 shadow-md flex items-center justify-center">
                     {latestMedia.mediaType === 'VIDEO' ? (
                       <video
                         src={latestMedia.url}
@@ -632,7 +671,7 @@ export const CreativeStudioPage: React.FC = () => {
                     <a
                       href={latestMedia.url}
                       download={`creative_${latestMedia.id}.${latestMedia.mediaType === 'VIDEO' ? 'mp4' : 'png'}`}
-                      className="flex-1 py-3 px-4 rounded-xl border border-[var(--border)] hover:bg-[var(--bg)] text-xs font-bold text-[var(--ink)] flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                      className="btn-secondary flex-1 py-3 px-4 text-xs cursor-pointer"
                     >
                       <Download size={16} />
                       <span>Скачать файл</span>
@@ -640,7 +679,7 @@ export const CreativeStudioPage: React.FC = () => {
 
                     <button
                       onClick={() => handleOpenAttachModal(latestMedia)}
-                      className="flex-1 py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-colors cursor-pointer"
+                      className="btn-primary flex-1 py-3 px-4 text-xs cursor-pointer"
                     >
                       <Send size={16} />
                       <span>Прикрепить к посту</span>
@@ -661,20 +700,19 @@ export const CreativeStudioPage: React.FC = () => {
                   </p>
                 </div>
               )}
-
             </div>
           </div>
         </div>
       ) : (
         /* Media Library Tab */
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setLibraryFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                   libraryFilter === 'ALL'
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-[var(--accent)] text-[var(--on-accent)]'
                     : 'bg-[var(--surface)] text-[var(--muted)] border border-[var(--border)]'
                 }`}
               >
@@ -682,9 +720,9 @@ export const CreativeStudioPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setLibraryFilter('IMAGE')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                   libraryFilter === 'IMAGE'
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-[var(--accent)] text-[var(--on-accent)]'
                     : 'bg-[var(--surface)] text-[var(--muted)] border border-[var(--border)]'
                 }`}
               >
@@ -692,9 +730,9 @@ export const CreativeStudioPage: React.FC = () => {
               </button>
               <button
                 onClick={() => setLibraryFilter('VIDEO')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer ${
                   libraryFilter === 'VIDEO'
-                    ? 'bg-amber-500 text-white'
+                    ? 'bg-[var(--accent)] text-[var(--on-accent)]'
                     : 'bg-[var(--surface)] text-[var(--muted)] border border-[var(--border)]'
                 }`}
               >
@@ -704,28 +742,29 @@ export const CreativeStudioPage: React.FC = () => {
 
             <button
               onClick={loadMedia}
-              className="p-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--bg)] text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
+              className="btn-secondary p-2 rounded-lg cursor-pointer"
+              title="Обновить"
             >
               <RefreshCw size={16} />
             </button>
           </div>
 
           {filteredMedia.length === 0 ? (
-            <div className="bg-[var(--surface)] p-12 rounded-2xl border border-[var(--border)] text-center space-y-3">
-              <FolderArchive size={36} className="mx-auto text-[var(--muted)]" />
+            <div className="card p-12 text-center space-y-3">
+              <Library size={36} className="mx-auto text-[var(--muted)]" />
               <h3 className="text-base font-bold text-[var(--ink)]">В медиатеке пока нет файлов</h3>
               <p className="text-xs text-[var(--muted)]">
                 Создайте первое изображение или рекламный видеоролик во вкладках генерации
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {filteredMedia.map(item => (
                 <div
                   key={item.id}
-                  className="bg-[var(--surface)] rounded-2xl border border-[var(--border)] overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col group"
+                  className="card card-hover overflow-hidden flex flex-col group"
                 >
-                  <div className="relative aspect-square bg-black/20 overflow-hidden flex items-center justify-center">
+                  <div className="relative aspect-square bg-black/10 overflow-hidden flex items-center justify-center">
                     {item.mediaType === 'VIDEO' ? (
                       <video
                         src={item.url}
@@ -734,7 +773,7 @@ export const CreativeStudioPage: React.FC = () => {
                     ) : (
                       <img
                         src={item.url}
-                        alt="Media"
+                        alt={item.prompt || 'Creative asset'}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                     )}
@@ -757,14 +796,14 @@ export const CreativeStudioPage: React.FC = () => {
                       <a
                         href={item.url}
                         download={`asset_${item.id}`}
-                        className="p-2 rounded-lg border border-[var(--border)] hover:bg-[var(--bg)] text-[var(--muted)] hover:text-[var(--ink)] transition-colors"
+                        className="btn-secondary p-2 rounded-lg cursor-pointer"
                         title="Скачать"
                       >
                         <Download size={14} />
                       </a>
                       <button
                         onClick={() => handleOpenAttachModal(item)}
-                        className="flex-1 py-1.5 px-3 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        className="btn-primary flex-1 py-1.5 px-3 text-xs cursor-pointer"
                       >
                         <Send size={13} />
                         <span>В публикацию</span>
@@ -781,19 +820,19 @@ export const CreativeStudioPage: React.FC = () => {
       {/* Attach To Post Modal */}
       {isAttachModalOpen && attachTargetMedia && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-[var(--surface)] w-full max-w-lg rounded-2xl border border-[var(--border)] p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="card w-full max-w-lg p-6 space-y-5 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--border)] pb-3">
               <h3 className="text-lg font-bold text-[var(--ink)]">Прикрепить к публикации</h3>
               <button
                 onClick={() => setIsAttachModalOpen(false)}
-                className="text-[var(--muted)] hover:text-[var(--ink)] text-sm font-bold"
+                className="text-[var(--muted)] hover:text-[var(--ink)] text-sm font-bold cursor-pointer"
               >
-                ✕
+                &times;
               </button>
             </div>
 
             {attachSuccessMessage ? (
-              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-sm font-semibold flex items-center gap-2">
+              <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-[var(--success)] text-sm font-semibold flex items-center gap-2">
                 <CheckCircle2 size={18} />
                 <span>{attachSuccessMessage}</span>
               </div>
@@ -803,14 +842,14 @@ export const CreativeStudioPage: React.FC = () => {
                   <label className="block text-xs font-bold text-[var(--muted)] uppercase mb-2">
                     Целевая соцсеть
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {['TELEGRAM', 'VK', 'INSTAGRAM'].map(p => (
+                  <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {PLATFORM_OPTIONS.map(p => (
                       <button
                         key={p}
                         onClick={() => setTargetPlatform(p)}
-                        className={`py-2 px-3 rounded-xl border text-xs font-bold transition-all ${
+                        className={`py-2 px-2 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
                           targetPlatform === p
-                            ? 'bg-amber-500 text-white border-amber-500'
+                            ? 'bg-[var(--accent)] text-[var(--on-accent)] border-[var(--accent)]'
                             : 'bg-[var(--bg)] text-[var(--ink)] border-[var(--border)]'
                         }`}
                       >
@@ -828,20 +867,26 @@ export const CreativeStudioPage: React.FC = () => {
                     rows={4}
                     value={postCaption}
                     onChange={e => setPostCaption(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="w-full px-3 py-2.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-xs text-[var(--ink)] focus:outline-none focus:border-[var(--accent)]"
                   />
                 </div>
+
+                {attachError && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-bold">
+                    {attachError}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-end gap-3 pt-3">
                   <button
                     onClick={() => setIsAttachModalOpen(false)}
-                    className="px-4 py-2 rounded-xl border border-[var(--border)] text-xs font-bold text-[var(--muted)] hover:bg-[var(--bg)]"
+                    className="btn-secondary px-4 py-2 text-xs cursor-pointer"
                   >
                     Отмена
                   </button>
                   <button
                     onClick={handleAttachSubmit}
-                    className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold shadow-md cursor-pointer"
+                    className="btn-primary px-5 py-2 text-xs cursor-pointer"
                   >
                     Создать публикацию
                   </button>

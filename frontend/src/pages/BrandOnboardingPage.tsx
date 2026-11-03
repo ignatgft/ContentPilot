@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiRequest } from '../api/client';
-import { Store, Sparkles, Check, Coffee, Clock, MapPin, Plus, Trash2 } from 'lucide-react';
+import { Store, Sparkles, Check, Clock, MapPin, Plus, Trash2, Coffee, Scissors, UtensilsCrossed } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface MenuItem {
@@ -108,6 +108,68 @@ export const BrandOnboardingPage: React.FC = () => {
     });
   };
 
+  const applyPreset = (type: 'COFFEE' | 'BARBERSHOP' | 'BAKERY') => {
+    if (type === 'COFFEE') {
+      setFormData({
+        name: 'Кофейня «Surf Coffee»',
+        description: 'Уютная спешелти-кофейня третьей волны с авторскими напитками и свежей выпечкой.',
+        audience: 'Студенты, фрилансеры, диджитал-специалисты и ценители качественного зернового кофе (18–35 лет).',
+        tone: 'Дружелюбный, вдохновляющий, экспертный, с лёгким юмором.',
+        facts: {
+          menu: [
+            { name: 'Капучино 300мл', price: 290 },
+            { name: 'Латте Солёная карамель', price: 340 },
+            { name: 'Фирменный Раф Ваниль', price: 380 },
+            { name: 'Круассан миндальный', price: 240 },
+            { name: 'Матча латте на кокосовом', price: 360 },
+          ],
+          schedule: 'Пн-Пт 08:00–22:00, Сб-Вс 09:00–23:00',
+          address: 'ул. Ленина, 42 (напротив сквера)',
+        },
+        autonomyMode: 'SEMI_AUTO',
+        samples: [],
+      });
+    } else if (type === 'BARBERSHOP') {
+      setFormData({
+        name: 'Барбершоп «Chop-Chop»',
+        description: 'Мужская парикмахерская классической стрижки и ухода за бородой в атмосфере комфорта.',
+        audience: 'Мужчины 20–45 лет, ценящие безупречный стиль, комфорт и экономию времени.',
+        tone: 'Сдержанный, уверенный, экспертный, стильный.',
+        facts: {
+          menu: [
+            { name: 'Мужская стрижка', price: 1800 },
+            { name: 'Моделирование бороды', price: 1200 },
+            { name: 'Комплекс Стрижка + Борода', price: 2600 },
+            { name: 'Камуфляж седины', price: 1100 },
+          ],
+          schedule: 'Ежедневно 10:00–22:00',
+          address: 'просп. Мира, 15',
+        },
+        autonomyMode: 'SEMI_AUTO',
+        samples: [],
+      });
+    } else {
+      setFormData({
+        name: 'Ремесленная пекарня «Багет & Ко»',
+        description: 'Французская выпечка на живой закваске без улучшителей и авторские десерты.',
+        audience: 'Жители района, семьи, ценители натуральных продуктов и свежего хлеба.',
+        tone: 'Тёплый, семейный, аппетитный, заботливый.',
+        facts: {
+          menu: [
+            { name: 'Багет традиционный', price: 160 },
+            { name: 'Хлеб Тартин на закваске', price: 280 },
+            { name: 'Круассан классический', price: 190 },
+            { name: 'Улитка с корицей и орехами', price: 220 },
+          ],
+          schedule: 'Ежедневно 07:30–21:00',
+          address: 'ул. Садовая, 8',
+        },
+        autonomyMode: 'SEMI_AUTO',
+        samples: [],
+      });
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -141,7 +203,7 @@ export const BrandOnboardingPage: React.FC = () => {
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
       {/* Title */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
           <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--chip-bg)] text-[var(--chip-text)] text-xs font-bold mb-2">
             <Store size={14} />
@@ -156,6 +218,42 @@ export const BrandOnboardingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Quick Showcase Presets for Instant Demo */}
+      <div className="mb-6 p-4 rounded-2xl bg-[var(--surface)] border border-[var(--border)] shadow-xs space-y-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold text-[var(--muted)] flex items-center gap-1.5">
+            <Sparkles size={14} className="text-[var(--accent)]" />
+            <span>Быстрый старт для демонстрации (выберите готовую модель бизнеса):</span>
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            onClick={() => applyPreset('COFFEE')}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--chip-bg)] text-[var(--ink)] hover:bg-[var(--accent)] hover:text-[var(--on-accent)] transition-all cursor-pointer border border-[var(--border)] inline-flex items-center gap-1.5"
+          >
+            <Coffee size={14} className="text-[var(--accent)]" />
+            <span>Кофейня «Surf Coffee» (латте, раф, выпечка)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => applyPreset('BARBERSHOP')}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--chip-bg)] text-[var(--ink)] hover:bg-[var(--accent)] hover:text-[var(--on-accent)] transition-all cursor-pointer border border-[var(--border)] inline-flex items-center gap-1.5"
+          >
+            <Scissors size={14} className="text-[var(--accent)]" />
+            <span>Барбершоп «Chop-Chop» (стрижки, борода)</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => applyPreset('BAKERY')}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[var(--chip-bg)] text-[var(--ink)] hover:bg-[var(--accent)] hover:text-[var(--on-accent)] transition-all cursor-pointer border border-[var(--border)] inline-flex items-center gap-1.5"
+          >
+            <UtensilsCrossed size={14} className="text-[var(--accent)]" />
+            <span>Ремесленная пекарня «Багет & Ко»</span>
+          </button>
+        </div>
+      </div>
+
       {successMsg && (
         <div className="mb-6 p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-[var(--success)] font-bold text-sm flex items-center gap-2">
           <Check size={18} />
@@ -165,9 +263,9 @@ export const BrandOnboardingPage: React.FC = () => {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Main Details Card */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="card p-6 space-y-4">
           <h2 className="text-lg font-bold text-[var(--ink)] flex items-center gap-2">
-            <Coffee size={20} className="text-[var(--accent)]" />
+            <Store size={20} className="text-[var(--accent)]" />
             <span>Основная информация</span>
           </h2>
 
@@ -228,7 +326,7 @@ export const BrandOnboardingPage: React.FC = () => {
         </div>
 
         {/* Facts Card (Menu, Prices, Hours, Location) */}
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 shadow-sm space-y-4">
+        <div className="card p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-[var(--ink)] flex items-center gap-2">
               <Sparkles size={20} className="text-[var(--accent)]" />

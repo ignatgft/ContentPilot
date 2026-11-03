@@ -19,11 +19,8 @@ public class ClaudeGenerationService {
     private final List<TextGenerationProvider> providers;
     private final FallbackTextProvider fallbackProvider;
 
-    @Value("${app.ai.text-provider:gemini}")
+    @Value("${app.ai.text-provider:auto}")
     private String configuredProviderName;
-
-    @Value("${app.demo-mode-enabled:false}")
-    private boolean demoModeEnabled;
 
     @Autowired
     public ClaudeGenerationService(List<TextGenerationProvider> providers, FallbackTextProvider fallbackProvider) {
@@ -40,8 +37,7 @@ public class ClaudeGenerationService {
                 new OllamaTextProvider(restClient, objectMapper),
                 this.fallbackProvider
         );
-        this.configuredProviderName = "fallback";
-        this.demoModeEnabled = true;
+        this.configuredProviderName = "auto";
     }
 
     @Data
@@ -68,20 +64,17 @@ public class ClaudeGenerationService {
                     log.info("Generating campaign via primary AI text provider: {}", selected.getProviderName());
                     return selected.generateCampaignPosts(brand, goal, durationDays);
                 } catch (Exception e) {
-                    log.warn("Primary AI provider '{}' failed: {}. Evaluating backup...", selected.getProviderName(), e.getMessage());
-                    if (!demoModeEnabled) {
-                        throw new IllegalStateException("Ошибка генерации AI через '" + selected.getProviderName() + "': " + e.getMessage(), e);
-                    }
+                    throw new IllegalStateException("Ошибка генерации AI через '" + selected.getProviderName() + "': " + e.getMessage(), e);
                 }
-            } else if (!demoModeEnabled) {
-                throw new IllegalStateException(String.format(
-                        "AI-провайдер '%s' не настроен или недоступен. Укажите API-ключ в переменных окружения (GEMINI_API_KEY, CLAUDE_API_KEY) или включите DEMO_MODE_ENABLED=true.",
-                        targetProvider
-                ));
             }
+
+            throw new IllegalStateException(String.format(
+                    "AI-провайдер '%s' не настроен или недоступен. Укажите API-ключ в переменных окружения (GEMINI_API_KEY, CLAUDE_API_KEY) или переключите AI_TEXT_PROVIDER на 'auto'.",
+                    targetProvider
+            ));
         }
 
-        // 2. In auto mode (or fallback mode), try any available cloud AI provider (Gemini, Claude, Ollama)
+        // 2. In auto (or fallback) mode, try any available cloud AI provider (Gemini, Claude, Ollama)
         for (TextGenerationProvider provider : providers) {
             if (!provider.getProviderName().equalsIgnoreCase("fallback") && provider.isAvailable()) {
                 try {
@@ -93,7 +86,7 @@ public class ClaudeGenerationService {
             }
         }
 
-        // 3. Fallback to Brand Memory generator
+        // 3. Deterministic Brand Memory generator — no API keys required
         log.info("Generating campaign posts using deterministic Brand Memory provider");
         return fallbackProvider.generateCampaignPosts(brand, goal, durationDays);
     }

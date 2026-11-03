@@ -5,6 +5,9 @@ import com.contentpilot.post.PostRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.client.RestClient;
 
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -19,6 +22,7 @@ public class VkPublisher implements Publisher {
     private final ChannelRepository channelRepository;
     private final PublishLogRepository publishLogRepository;
     private final PostRepository postRepository;
+    private final RestClient restClient;
 
     @Override
     public String getPlatform() {
@@ -46,8 +50,8 @@ public class VkPublisher implements Publisher {
         Channel channel = channelRepository.findFirstByBrandIdAndPlatform(brandId, "VK")
                 .orElseGet(() -> Channel.builder().brand(null).platform("VK").build());
 
-        channel.setExternalId(groupId != null ? groupId : "club_demo");
-        channel.setEncryptedToken(token != null ? token : "vk_token_demo");
+        channel.setExternalId(groupId != null ? groupId : null);
+        channel.setEncryptedToken(token);
         channel.setStatus("CONNECTED");
         channelRepository.save(channel);
         return true;
@@ -60,29 +64,84 @@ public class VkPublisher implements Publisher {
 
         int attempt = publishLogRepository.findByPostIdOrderByCreatedAtDesc(post.getId()).size() + 1;
 
-        if (channelOpt.isPresent() && !channelOpt.get().getEncryptedToken().startsWith("demo")) {
-            // Live VK API wall.post call would happen here
-            log.info("Publishing post {} to VK group {}", post.getId(), channelOpt.get().getExternalId());
+        String groupId = channelOpt.map(Channel::getExternalId).orElse(null);
+        String accessToken = channelOpt.map(Channel::getEncryptedToken).orElse(null);
+
+        if (accessToken == null || accessToken.isBlank()) {
+            // No community token configured — do not fake success, hand over to manual publishing.
+            publishLogRepository.save(PublishLog.builder()
+                    .post(post)
+                    .attempt(attempt)
+                    .result("READY_MANUAL")
+                    .message("VK API-токен сообщества не указан: текст и медиа подготовлены для ручной публикации"
+                            + (groupId != null ? " (ID: " + groupId + ")" : "") + ".")
+                    .build());
+
+            post.setStatus("READY_MANUAL");
+            postRepository.save(post);
+            return true;
         }
 
-        publishLogRepository.save(PublishLog.builder()
-                .post(post)
-                .attempt(attempt)
-                .result("SUCCESS")
-                .message("Опубликовано на стене сообщества VK (ID: " +
-                        channelOpt.map(Channel::getExternalId).orElse("демо-сообщество") + ")")
-                .build());
+        try {
+            MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
+            form.add("owner_id", resolveOwnerId(groupId));
+            form.add("message", post.getText());
+            form.add("access_token", accessToken);
+            form.add("v", "5.199");
 
-        post.setStatus("PUBLISHED");
-        post.setPublishedAt(OffsetDateTime.now());
-        post.setError(null);
-        postRepository.save(post);
-        return true;
+            String response = restClient.post()
+                    .uri("https://api.vk.com/method/wall.post")
+                    .body(form)
+                    .retrieve()
+                    .body(String.class);
+
+            log.info("VK publish success for post {}: {}", post.getId(), response);
+
+            publishLogRepository.save(PublishLog.builder()
+                    .post(post)
+                    .attempt(attempt)
+                    .result("SUCCESS")
+                    .message("Опубликовано на стене сообщества VK (ID: " + groupId + ")")
+                    .build());
+
+            post.setStatus("PUBLISHED");
+            post.setPublishedAt(OffsetDateTime.now());
+            post.setError(null);
+            postRepository.save(post);
+            return true;
+        } catch (Exception e) {
+            log.error("VK publish error for post {}: {}", post.getId(), e.getMessage());
+
+            publishLogRepository.save(PublishLog.builder()
+                    .post(post)
+                    .attempt(attempt)
+                    .result("FAILED")
+                    .message("Ошибка VK API: " + e.getMessage())
+                    .build());
+
+            if (attempt >= 3) {
+                post.setStatus("FAILED");
+            }
+            post.setError("Ошибка VK API: " + e.getMessage());
+            postRepository.save(post);
+            return false;
+        }
+    }
+
+    private String resolveOwnerId(String groupId) {
+        if (groupId == null || groupId.isBlank()) {
+            throw new IllegalArgumentException("ID сообщества VK не указан");
+        }
+        String trimmed = groupId.trim();
+        if (trimmed.matches("-?\\d+.*") && !trimmed.startsWith("-")) {
+            return "-" + trimmed;
+        }
+        return trimmed;
     }
 
     @Override
     public Map<String, Integer> fetchMetrics(Post post) {
-        return Map.of("views", 210, "reactions", 24, "clicks", 12);
+        return Map.of();
     }
 
     @Override

@@ -38,6 +38,15 @@ public class Channel {
     @Builder.Default
     private String status = "CONNECTED"; // CONNECTED, DISCONNECTED, ERROR
 
+    @Column(name = "bot_username", length = 255)
+    private String botUsername; // Verified via Telegram getMe, e.g. @contentpilot_bot
+
+    @Column(name = "verified_at")
+    private OffsetDateTime verifiedAt; // Last successful bot verification time
+
+    @Column(name = "verification_error", columnDefinition = "TEXT")
+    private String verificationError; // Last verification failure reason, null when verified
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private OffsetDateTime createdAt = OffsetDateTime.now();

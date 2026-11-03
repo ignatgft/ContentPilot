@@ -1,15 +1,26 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { Sun, Moon, Eye, EyeOff, Sparkles, CheckCircle2 } from 'lucide-react';
+import {
+  Sun,
+  Moon,
+  Eye,
+  EyeOff,
+  CheckCircle2,
+  TrendingUp,
+  Warehouse,
+  ShieldCheck,
+  UtensilsCrossed,
+  School,
+} from 'lucide-react';
 
 export const AuthPage: React.FC = () => {
-  const { login, register, googleLogin } = useAuth();
+  const { login, register } = useAuth();
   const { theme, toggleTheme } = useTheme();
 
-  const [isRegister, setIsRegister] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [email, setEmail] = useState('admin@smartcanteen.kg');
+  const [password, setPassword] = useState('demo1234');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -37,215 +48,292 @@ export const AuthPage: React.FC = () => {
         await login(email, password);
       }
     } catch (err: any) {
+      // If login fails because user doesn't exist yet, try to auto-register for demo convenience
+      if (!isRegister && err.message && (err.message.includes('401') || err.message.includes('не найден') || err.message.includes('Invalid credentials') || err.message.includes('Bad credentials'))) {
+        try {
+          await register(email, password);
+          return;
+        } catch {
+          // ignore fallback
+        }
+      }
       setError(err.message || 'Ошибка авторизации. Проверьте введенные данные.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleSubmit = async () => {
+  const handleQuickDemoLogin = async () => {
+    setEmail('admin@smartcanteen.kg');
+    setPassword('demo1234');
     setError(null);
     setLoading(true);
     try {
-      await googleLogin();
-    } catch (err: any) {
-      setError(err.message || 'Ошибка входа через Google');
+      await login('admin@smartcanteen.kg', 'demo1234');
+    } catch {
+      try {
+        await register('admin@smartcanteen.kg', 'demo1234');
+      } catch (err: any) {
+        setError(err.message || 'Ошибка входа в демо');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  const features = [
+    {
+      icon: TrendingUp,
+      title: 'Прогноз спроса и посещаемости',
+      text: 'Точный расчёт порций с учётом дней недели, погоды, четвертей и исторических данных без галлюцинаций',
+    },
+    {
+      icon: Warehouse,
+      title: 'Партионный склад и списание по FEFO',
+      text: 'Контроль сроков годности скоропортящихся продуктов, автоматическое списание сначала более ранних партий',
+    },
+    {
+      icon: ShieldCheck,
+      title: 'СанПиН и детерминированные закупки',
+      text: 'Автоматический расчёт дефицита сырья на неделю с округлением до упаковок поставщика и контролем бюджета',
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-[var(--bg)] flex flex-col justify-between p-4 sm:p-6 transition-colors duration-200">
+    <div className="min-h-screen bg-[var(--bg)] flex flex-col p-4 sm:p-6 transition-colors duration-200">
       {/* Top Header */}
-      <div className="max-w-md w-full mx-auto flex items-center justify-between">
+      <div className="max-w-5xl w-full mx-auto flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-[var(--accent)] flex items-center justify-center text-[var(--on-accent)]">
-            <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
-              <path d="M8 19L14 7l6 12-6-3z" fill="currentColor" />
-            </svg>
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#5B8CFF] to-[#9477FF] flex items-center justify-center text-white shadow-sm">
+            <UtensilsCrossed size={18} />
           </div>
-          <span className="font-extrabold text-lg text-[var(--ink)]">ContentPilot 2.0</span>
+          <div className="flex flex-col">
+            <span className="font-extrabold text-lg text-[var(--ink)] leading-tight">
+              SmartCanteen <span className="text-[#5B8CFF]">AI</span>
+            </span>
+            <span className="text-[10px] text-[var(--muted)] tracking-wider uppercase font-semibold">
+              Управление школьной столовой
+            </span>
+          </div>
         </div>
 
         <button
           onClick={toggleTheme}
           className="w-10 h-10 rounded-xl border border-[var(--border)] flex items-center justify-center text-[var(--ink)] hover:bg-[var(--surface)] transition-colors cursor-pointer"
+          aria-label="Сменить тему"
         >
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
         </button>
       </div>
 
-      {/* Main Card */}
-      <div className="max-w-md w-full mx-auto my-auto py-8">
-        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-2xl p-6 sm:p-8 shadow-sm transition-colors duration-200">
-          <div className="text-center mb-6">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[var(--chip-bg)] text-[var(--chip-text)] text-xs font-bold mb-3">
-              <Sparkles size={14} />
-              <span>ИИ-маркетолог на автопилоте</span>
-            </div>
-            <h1 className="text-2xl font-extrabold text-[var(--ink)] mb-2">
-              {isRegister ? 'Создать аккаунт' : 'Вход в аккаунт'}
-            </h1>
-            <p className="text-sm text-[var(--muted)]">
-              {isRegister
-                ? 'Начните генерировать и публиковать посты для вашего бизнеса'
-                : 'С возвращением! Войдите, чтобы управлять кампаниями'}
-            </p>
-          </div>
-
-          {/* Google Auth Button */}
-          <button
-            onClick={handleGoogleSubmit}
-            disabled={loading}
-            className="w-full min-h-[44px] rounded-xl border border-[var(--border)] bg-transparent hover:bg-[var(--bg)] text-[var(--ink)] font-bold text-sm flex items-center justify-center gap-3 transition-colors cursor-pointer mb-5"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-              />
-            </svg>
-            <span>Продолжить с Google</span>
-          </button>
-
-          <div className="relative flex items-center justify-center mb-5">
-            <div className="border-t border-[var(--border)] w-full"></div>
-            <span className="bg-[var(--surface)] px-3 text-xs text-[var(--muted)] uppercase font-semibold absolute">
-              или почта
-            </span>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-bold text-[var(--ink)] mb-1.5">
-                Электронная почта
-              </label>
-              <input
-                type="email"
-                required
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="owner@coffeeshop.ru"
-                className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] placeholder-[var(--muted)] text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-[var(--ink)] mb-1.5">Пароль</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder="Минимум 8 символов"
-                  className="w-full min-h-[44px] px-3.5 pr-10 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] placeholder-[var(--muted)] text-sm focus:outline-none focus:border-[var(--accent)] transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--ink)]"
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
+      {/* Main Two-Pane Layout */}
+      <div className="flex-1 flex items-center justify-center py-6">
+        <div className="w-full max-w-5xl grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
+          {/* Left: Pitch Panel (desktop only) */}
+          <div className="hidden lg:block">
+            <div className="card p-8 space-y-7 animate-page-enter">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5B8CFF]/15 text-[#5B8CFF] text-xs font-bold">
+                <School size={14} />
+                <span>Кейс: Школа-гимназия №24 (г. Бишкек)</span>
               </div>
 
-              {/* Password Requirements helper (shown on registration) */}
-              {isRegister && password.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <div
-                    className={`flex items-center gap-1.5 text-xs ${
-                      hasMinLength ? 'text-[var(--success)] font-bold' : 'text-[var(--muted)]'
-                    }`}
-                  >
-                    <CheckCircle2 size={13} />
-                    <span>Минимум 8 символов</span>
+              <h2 className="text-3xl font-extrabold text-[var(--ink)] tracking-tight leading-snug">
+                Цифровая столовая: <span className="text-[#5B8CFF]">минимум отходов, 100% сытых детей</span>
+              </h2>
+              <p className="text-sm text-[var(--muted)] leading-relaxed">
+                Интеллектуальное планирование меню, точный прогноз порций по классам, контроль FEFO-партий и исключение порчи продуктов по нормам СанПиН.
+              </p>
+
+              <div className="space-y-4">
+                {features.map((f) => (
+                  <div key={f.title} className="flex items-start gap-3 p-3.5 rounded-xl bg-[var(--surface)] border border-[var(--border)]">
+                    <div className="w-9 h-9 rounded-lg bg-[#5B8CFF]/15 text-[#5B8CFF] flex items-center justify-center shrink-0">
+                      <f.icon size={18} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-[var(--ink)]">{f.title}</div>
+                      <div className="text-xs text-[var(--muted)] leading-relaxed">{f.text}</div>
+                    </div>
                   </div>
-                  <div
-                    className={`flex items-center gap-1.5 text-xs ${
-                      hasLetter && hasDigit
-                        ? 'text-[var(--success)] font-bold'
-                        : 'text-[var(--muted)]'
-                    }`}
-                  >
-                    <CheckCircle2 size={13} />
-                    <span>Буквы и хотя бы одна цифра</span>
-                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Auth Card */}
+          <div className="max-w-md w-full mx-auto">
+            <div className="card p-6 sm:p-8 space-y-1 transition-colors duration-200 animate-page-enter">
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#5B8CFF]/15 text-[#5B8CFF] text-xs font-bold mb-3">
+                  <UtensilsCrossed size={14} />
+                  <span>Единая панель столовой</span>
                 </div>
-              )}
+                <h1 className="text-2xl font-extrabold text-[var(--ink)] mb-2">
+                  {isRegister ? 'Регистрация столовой' : 'Вход в систему'}
+                </h1>
+                <p className="text-sm text-[var(--muted)]">
+                  {isRegister
+                    ? 'Подключите вашу школу к интеллектуальной платформе питания'
+                    : 'Войдите для управления меню, складом и закупками'}
+                </p>
+              </div>
+
+              {/* Fast 1-click Demo Account Login */}
+              <div className="mb-5">
+                <button
+                  type="button"
+                  onClick={handleQuickDemoLogin}
+                  disabled={loading}
+                  className="w-full min-h-[44px] px-3.5 py-2.5 rounded-xl border border-[#5B8CFF]/40 hover:border-[#5B8CFF] bg-[#5B8CFF]/15 hover:bg-[#5B8CFF]/25 text-[#5B8CFF] text-xs sm:text-sm font-extrabold flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                  title="Мгновенный вход в заполненный демо-аккаунт школы №24"
+                >
+                  <School size={16} />
+                  <span>Войти в демо: Школа №24 г. Бишкек</span>
+                </button>
+                <p className="text-[11px] text-[var(--muted)] text-center mt-1.5">
+                  1 250 учащихся • Меню на неделю • FEFO-склад • СанПиН
+                </p>
+              </div>
+
+              <div className="relative flex items-center justify-center mb-5">
+                <div className="border-t border-[var(--border)] w-full"></div>
+                <span className="bg-[var(--surface)] px-3 text-xs text-[var(--muted)] uppercase font-semibold absolute">
+                  или учётная запись
+                </span>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {error && (
+                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-red-600 dark:text-red-400 text-xs font-semibold">
+                    {error}
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-[var(--ink)] mb-1.5">
+                    Электронная почта
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    autoComplete="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="canteen@school.edu.kg"
+                    className="w-full min-h-[44px] px-3.5 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] placeholder-[var(--muted)] text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-[var(--ink)] mb-1.5">Пароль</label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete={isRegister ? 'new-password' : 'current-password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Минимум 8 символов"
+                      className="w-full min-h-[44px] px-3.5 pr-10 rounded-xl border border-[var(--border)] bg-[var(--bg)] text-[var(--ink)] placeholder-[var(--muted)] text-sm focus:outline-none focus:border-emerald-500 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--muted)] hover:text-[var(--ink)] cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+
+                  {/* Password Requirements helper (shown on registration) */}
+                  {isRegister && password.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      <div
+                        className={`flex items-center gap-1.5 text-xs ${
+                          hasMinLength ? 'text-[var(--success)] font-bold' : 'text-[var(--muted)]'
+                        }`}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>Минимум 8 символов</span>
+                      </div>
+                      <div
+                        className={`flex items-center gap-1.5 text-xs ${
+                          hasLetter && hasDigit ? 'text-[var(--success)] font-bold' : 'text-[var(--muted)]'
+                        }`}
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>Буквы и хотя бы одна цифра</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || (isRegister && !isPasswordValid)}
+                  className="btn-primary w-full min-h-[44px] text-sm cursor-pointer mt-2 disabled:cursor-not-allowed bg-[#5B8CFF] hover:bg-[#4577EB] text-white border-none shadow-md"
+                >
+                  {loading
+                    ? 'Загрузка...'
+                    : isRegister
+                    ? 'Зарегистрироваться'
+                    : 'Войти в SmartCanteen'}
+                </button>
+              </form>
+
+              {/* Toggle between register and login */}
+              <div className="mt-6 text-center text-sm text-[var(--muted)] space-y-3">
+                <div>
+                  {isRegister ? (
+                    <>
+                      Уже есть доступ?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRegister(false);
+                          setError(null);
+                        }}
+                        className="text-[#5B8CFF] font-bold hover:underline cursor-pointer"
+                      >
+                        Войти
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      Новая школа?{' '}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsRegister(true);
+                          setError(null);
+                        }}
+                        className="text-[#5B8CFF] font-bold hover:underline cursor-pointer"
+                      >
+                        Зарегистрироваться
+                      </button>
+                    </>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-[var(--border)]">
+                  <a
+                    href="/public/school-24"
+                    className="inline-flex items-center gap-1.5 text-xs text-[#55C7DE] font-bold hover:underline"
+                  >
+                    <UtensilsCrossed size={14} />
+                    <span>Вы ученик или родитель? Открыть меню без входа</span>
+                  </a>
+                </div>
+              </div>
             </div>
-
-            <button
-              type="submit"
-              disabled={loading || (isRegister && !isPasswordValid)}
-              className="w-full min-h-[44px] rounded-xl bg-[var(--accent)] hover:opacity-95 text-[var(--on-accent)] font-extrabold text-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-sm cursor-pointer mt-2"
-            >
-              {loading
-                ? 'Загрузка...'
-                : isRegister
-                ? 'Зарегистрироваться'
-                : 'Войти'}
-            </button>
-          </form>
-
-          {/* Toggle between register and login */}
-          <div className="mt-6 text-center text-sm text-[var(--muted)]">
-            {isRegister ? (
-              <>
-                Уже есть аккаунт?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRegister(false);
-                    setError(null);
-                  }}
-                  className="text-[var(--accent)] font-bold hover:underline cursor-pointer"
-                >
-                  Войти
-                </button>
-              </>
-            ) : (
-              <>
-                Нет аккаунта?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsRegister(true);
-                    setError(null);
-                  }}
-                  className="text-[var(--accent)] font-bold hover:underline cursor-pointer"
-                >
-                  Зарегистрироваться
-                </button>
-              </>
-            )}
           </div>
         </div>
       </div>
 
       {/* Footer */}
-      <div className="text-center text-xs text-[var(--muted)] pb-2">
-        ContentPilot 2.0 · Хакатон MVP · Спешелти кофе & Малый бизнес
+      <div className="text-center text-xs text-[var(--muted)] pb-2 opacity-75">
+        SmartCanteen AI — Цифровая платформа управления школьным питанием • Бишкек 2026
       </div>
     </div>
   );

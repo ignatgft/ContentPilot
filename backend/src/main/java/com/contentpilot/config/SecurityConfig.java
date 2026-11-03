@@ -31,16 +31,21 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
+                                "/api/public/**",
                                 "/api/v1/auth/**",
+                                "/api/auth/**",
+                                "/api/v1/canteen/**",
+                                "/api/canteen/**",
+                                "/api/v1/account/forgot-password",
+                                "/api/v1/account/reset-password",
                                 "/uploads/**",
-                                "/api/v1/creative/files/**",
-                                "/api/v1/creative/presets",
                                 "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/actuator/**",
                                 "/error"
                         ).permitAll()
+                        .requestMatchers("/api/admin/**").authenticated()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

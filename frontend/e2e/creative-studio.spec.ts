@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 
-test.describe('ContentPilot 2.0 — AI Creative Studio End-to-End Flow', () => {
+test.describe('ContentPilot — AI Creative Studio End-to-End Flow', () => {
   const BASE_URL = process.env.BASE_URL || 'http://localhost:3000';
   const TEST_EMAIL = 'test@contentpilot.io';
   const TEST_PASSWORD = 'Password123!';

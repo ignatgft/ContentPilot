@@ -60,7 +60,8 @@ public class TiktokPublisher implements Publisher {
 
     @Override
     public Map<String, Integer> fetchMetrics(Post post) {
-        return Map.of("views", 0, "reactions", 0, "clicks", 0);
+        // TikTok Content Posting API does not expose post analytics until the app audit is approved.
+        return Map.of();
     }
 
     @Override

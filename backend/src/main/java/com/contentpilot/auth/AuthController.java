@@ -12,8 +12,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.UUID;
+
 @RestController
-@RequestMapping("/api/v1/auth")
+@RequestMapping({"/api/v1/auth", "/api/auth"})
 @RequiredArgsConstructor
 @Tag(name = "Authentication", description = "Регистрация, вход и сессии")
 public class AuthController {
@@ -54,25 +57,70 @@ public class AuthController {
             @RequestHeader(value = "X-Client", required = false) String clientHeader,
             HttpServletRequest httpRequest,
             HttpServletResponse response) {
-        String refreshToken = null;
+        String refreshToken = request != null ? request.getRefreshToken() : null;
+        return ResponseEntity.ok(authService.refresh(refreshToken, clientHeader, httpRequest, response));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Выход: отзывает текущую сессию на сервере и чистит cookie")
+    public ResponseEntity<Void> logout(
+            @RequestBody(required = false) AuthDto.RefreshTokenRequest request,
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+        String refreshToken = request != null ? request.getRefreshToken() : null;
+        authService.logout(refreshToken, httpRequest, response);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/logout-all")
+    @Operation(summary = "Выход со всех устройств")
+    public ResponseEntity<AuthDto.MessageResponse> logoutAll(@AuthenticationPrincipal User user) {
+        int revoked = authService.logoutAll(user.getId());
+        AuthDto.MessageResponse response = new AuthDto.MessageResponse();
+        response.setMessage("Активные сессии завершены: " + revoked);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/sessions")
+    @Operation(summary = "Список активных сессий (refresh токен можно передать телом для mobile)")
+    public ResponseEntity<List<AuthDto.SessionResponse>> getSessions(
+            @AuthenticationPrincipal User user,
+            @RequestBody(required = false) AuthDto.RefreshTokenRequest request,
+            HttpServletRequest httpRequest) {
+        String current = null;
         if (request != null && request.getRefreshToken() != null && !request.getRefreshToken().isBlank()) {
-            refreshToken = request.getRefreshToken();
+            current = request.getRefreshToken();
         } else if (httpRequest.getCookies() != null) {
-            for (Cookie c : httpRequest.getCookies()) {
-                if ("refresh_token".equals(c.getName())) {
-                    refreshToken = c.getValue();
+            for (jakarta.servlet.http.Cookie c : httpRequest.getCookies()) {
+                if (AuthService.REFRESH_COOKIE.equals(c.getName())) {
+                    current = c.getValue();
                     break;
                 }
             }
         }
-        return ResponseEntity.ok(authService.refresh(refreshToken, clientHeader, response));
+        final String currentToken = current;
+        return ResponseEntity.ok(authService.getActiveSessions(user.getId()).stream()
+                .map(s -> authService.toSessionDto(s, currentToken))
+                .toList());
     }
 
-    @PostMapping("/logout")
-    @Operation(summary = "Выход из системы")
-    public ResponseEntity<Void> logout(HttpServletResponse response) {
-        authService.logout(response);
+    @DeleteMapping("/sessions/{sessionId}")
+    @Operation(summary = "Завершить конкретную сессию")
+    public ResponseEntity<Void> revokeSession(
+            @AuthenticationPrincipal User user,
+            @PathVariable UUID sessionId) {
+        authService.revokeSession(user.getId(), sessionId);
         return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/ping")
+    @Operation(summary = "Проверка доступности сервера для мобильного приложения")
+    public ResponseEntity<java.util.Map<String, Object>> ping() {
+        return ResponseEntity.ok(java.util.Map.of(
+                "status", "OK",
+                "service", "contentpilot",
+                "timestamp", System.currentTimeMillis()
+        ));
     }
 
     @GetMapping("/me")
@@ -81,9 +129,6 @@ public class AuthController {
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        AuthDto.UserInfo info = new AuthDto.UserInfo();
-        info.setId(user.getId());
-        info.setEmail(user.getEmail());
-        return ResponseEntity.ok(info);
+        return ResponseEntity.ok(AuthDto.UserInfo.fromUser(user));
     }
 }

@@ -30,16 +30,19 @@ services:
       SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-postgres}
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       JWT_SECRET: ${JWT_SECRET:-contentpilot-hackathon-super-secret-key-32bytes-min-len}
-      DEMO_MODE_ENABLED: ${DEMO_MODE_ENABLED:-false}
       AI_TEXT_PROVIDER: ${AI_TEXT_PROVIDER:-auto}
       AI_TEXT_MODEL: ${AI_TEXT_MODEL:-gemini-2.5-flash}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       CLAUDE_API_KEY: ${CLAUDE_API_KEY:-}
       AI_IMAGE_PROVIDER: ${AI_IMAGE_PROVIDER:-fallback}
       COMFYUI_BASE_URL: ${COMFYUI_BASE_URL:-http://comfyui:8188}
+      CREATIVE_STORAGE_DIR: ${CREATIVE_STORAGE_DIR:-/app/uploads/creative}
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+    volumes:
+      - creative_uploads:/app/uploads
     depends_on:
       postgres:
         condition: service_healthy
@@ -57,3 +60,4 @@ services:
 
 volumes:
   postgres_data:
+  creative_uploads:

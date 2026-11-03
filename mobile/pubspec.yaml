@@ -1,5 +1,5 @@
 name: contentpilot_mobile
-description: "ContentPilot 2.0 Mobile App for Android"
+description: "SmartCanteen AI Mobile App for Android (FoodTech SaaS)"
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -15,7 +15,9 @@ dependencies:
   flutter_secure_storage: ^9.0.0
   flutter_svg: ^2.0.10+1
   google_sign_in: ^6.2.1
+  image_picker: ^1.0.7
   intl: ^0.19.0
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
@@ -32,6 +34,6 @@ flutter:
     - assets/logo/
     - assets/avatars/
     - assets/platforms/
-    - assets/banners/
     - assets/splash/
+    - assets/creative/
 

@@ -3,6 +3,24 @@
 .env.local
 .env.*.local
 
+# Agent metadata and skills
+.agents/
+.gemini/
+.system_generated/
+
+# Binaries and archives
+*.exe
+*.dll
+*.so
+*.zip
+*.tar
+*.gz
+*.7z
+cloudflared.exe
+contentpilot-kit.zip
+contentpilot-android-kit.zip
+ContentPilot.zip
+
 # Node / Frontend
 node_modules/
 dist/
@@ -20,6 +38,8 @@ target/
 *.war
 *.ear
 .mvn/wrapper/maven-wrapper.jar
+uploads/
+backend/uploads/
 
 # IDE & Editor files
 .idea/
@@ -33,10 +53,6 @@ target/
 .DS_Store
 Thumbs.db
 
-# Archive files
-contentpilot-kit.zip
-contentpilot-android-kit.zip
-
 # Mobile / Flutter
 *.apk
 mobile/.dart_tool/
@@ -47,3 +63,12 @@ mobile/build/
 mobile/.pub/
 mobile/.pub-cache/
 
+# Temporary / Scratch docs & Kits
+design-kit/
+android-kit/
+COMPLETE_PROJECT_GUIDE.md
+PLATFORM_VECTOR_TRANSITION.md
+docs/CHAMPIONSHIP_AUDIT.md
+docs/JURY_DEMO_SCRIPT.md
+docs/SMARTCANTEEN_SYSTEM_GUIDE.md
+docs/smartcanteen_pack/

@@ -20,7 +20,7 @@ public class BrandService {
 
     @Transactional(readOnly = true)
     public BrandDto.Response getBrandByUserId(Long userId) {
-        Brand brand = brandRepository.findByUserId(userId)
+        Brand brand = brandRepository.findFirstByUserIdOrderByIdDesc(userId)
                 .orElse(null);
         if (brand == null) {
             return null;
@@ -30,7 +30,7 @@ public class BrandService {
 
     @Transactional
     public BrandDto.Response createOrUpdateBrand(Long userId, BrandDto.Request request) {
-        Brand brand = brandRepository.findByUserId(userId)
+        Brand brand = brandRepository.findFirstByUserIdOrderByIdDesc(userId)
                 .orElseGet(() -> Brand.builder().userId(userId).build());
 
         if (request.getName() != null && !request.getName().isBlank()) {

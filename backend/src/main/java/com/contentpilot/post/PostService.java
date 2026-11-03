@@ -82,7 +82,8 @@ public class PostService {
         if (publisher != null) {
             publisher.publish(post);
         } else {
-            post.setStatus("PUBLISHED");
+            post.setStatus("FAILED");
+            post.setError("Площадка «" + post.getPlatform() + "» не поддерживается интеграциями публикации");
             postRepository.save(post);
         }
         return campaignService.toPostDto(post);
@@ -90,7 +91,7 @@ public class PostService {
 
     @Transactional
     public int stopAllPosts(Long userId) {
-        Brand brand = brandRepository.findByUserId(userId)
+        Brand brand = brandRepository.findFirstByUserIdOrderByIdDesc(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Бренд не найден"));
 
         List<Post> scheduled = postRepository.findScheduledByBrandId(brand.getId());

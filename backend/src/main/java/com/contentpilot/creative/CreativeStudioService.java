@@ -46,15 +46,17 @@ public class CreativeStudioService {
     @Value("${app.ai.image-provider:fallback}")
     private String configuredImageProvider;
 
-    @Value("${app.demo-mode-enabled:false}")
-    private boolean demoModeEnabled;
-
     private Brand resolveUserBrand(User user, Long brandId) {
         if (brandId != null) {
-            return brandRepository.findById(brandId)
+            Brand brand = brandRepository.findById(brandId)
                     .orElseThrow(() -> new IllegalArgumentException("Бренд не найден с ID: " + brandId));
+            if (user != null && brand.getUserId() != null && !brand.getUserId().equals(user.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN, "Нет доступа к чужому бренду");
+            }
+            return brand;
         }
-        return brandRepository.findByUserId(user.getId())
+        return brandRepository.findFirstByUserIdOrderByIdDesc(user.getId())
                 .orElseThrow(() -> new IllegalStateException("У вас нет созданных брендов. Сначала настройте профиль бренда."));
     }
 
@@ -80,18 +82,14 @@ public class CreativeStudioService {
         if ("comfyui".equals(target)) {
             if (comfyUiImageProvider.isAvailable()) {
                 chosenProvider = comfyUiImageProvider;
-            } else if (!demoModeEnabled) {
-                throw new IllegalStateException("ComfyUI сервер недоступен по указанному COMFYUI_BASE_URL. Включите DEMO_MODE_ENABLED=true для презентационного режима.");
             } else {
-                chosenProvider = fallbackImageProvider;
+                throw new IllegalStateException("ComfyUI сервер недоступен по указанному COMFYUI_BASE_URL. Проверьте сервер или переключите AI_IMAGE_PROVIDER на 'fallback'.");
             }
         } else if ("openai".equals(target) || "dalle".equals(target)) {
             if (openAiImageProvider.isAvailable()) {
                 chosenProvider = openAiImageProvider;
-            } else if (!demoModeEnabled) {
-                throw new IllegalStateException("OpenAI API ключ не настроен. Укажите OPENAI_API_KEY в переменных окружения.");
             } else {
-                chosenProvider = fallbackImageProvider;
+                throw new IllegalStateException("OpenAI API ключ не настроен. Укажите OPENAI_API_KEY в переменных окружения или переключите AI_IMAGE_PROVIDER на 'fallback'.");
             }
         } else {
             chosenProvider = fallbackImageProvider;
@@ -105,7 +103,7 @@ public class CreativeStudioService {
                 .model("commercial-v1")
                 .prompt(request.getPrompt() != null ? request.getPrompt() : "Рекламный визуал продукта")
                 .aspectRatio(request.getAspectRatio() != null ? request.getAspectRatio() : "1:1")
-                .style(request.getStyle() != null ? request.getStyle() : "COFFEE_AESTHETIC")
+                .style(request.getStyle() != null ? request.getStyle() : "STUDIO_COMMERCIAL")
                 .status(CreativeTaskStatus.PROCESSING)
                 .progress(25)
                 .build();
@@ -190,7 +188,7 @@ public class CreativeStudioService {
                 .model("ffmpeg-zoom-v1")
                 .prompt(request.getPrompt() != null ? request.getPrompt() : "Рекламный ролик для сторис/Reels")
                 .aspectRatio(request.getAspectRatio() != null ? request.getAspectRatio() : "9:16")
-                .style(request.getStyle() != null ? request.getStyle() : "COFFEE_AESTHETIC")
+                .style(request.getStyle() != null ? request.getStyle() : "STUDIO_COMMERCIAL")
                 .status(CreativeTaskStatus.PENDING)
                 .progress(5)
                 .build();
@@ -311,9 +309,20 @@ public class CreativeStudioService {
         MediaAsset media = mediaAssetRepository.findById(mediaId)
                 .orElseThrow(() -> new IllegalArgumentException("Медиа-ассет не найден с ID: " + mediaId));
 
+        if (user == null || media.getBrand() == null || media.getBrand().getUserId() == null
+                || !media.getBrand().getUserId().equals(user.getId())) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.FORBIDDEN, "Нет доступа к этому медиа-ассету");
+        }
+
         if (request.getPostId() != null) {
             Post post = postRepository.findById(request.getPostId())
                     .orElseThrow(() -> new IllegalArgumentException("Пост не найден с ID: " + request.getPostId()));
+            if (post.getCampaign() == null || post.getCampaign().getBrand() == null
+                    || !post.getCampaign().getBrand().getUserId().equals(user.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN, "Нет прав на изменение поста");
+            }
             post.setMediaUrl(media.getUrl());
             return postRepository.save(post);
         }
@@ -323,6 +332,10 @@ public class CreativeStudioService {
         if (request.getCampaignId() != null) {
             campaign = campaignRepository.findById(request.getCampaignId())
                     .orElseThrow(() -> new IllegalArgumentException("Кампания не найдена"));
+            if (campaign.getBrand() == null || !campaign.getBrand().getUserId().equals(user.getId())) {
+                throw new org.springframework.web.server.ResponseStatusException(
+                        org.springframework.http.HttpStatus.FORBIDDEN, "Нет прав на эту кампанию");
+            }
         } else {
             List<Campaign> campaigns = campaignRepository.findByBrandIdOrderByCreatedAtDesc(media.getBrand().getId());
             if (campaigns.isEmpty()) {
@@ -362,7 +375,7 @@ public class CreativeStudioService {
         List<CreativeDto.CreativePreset> presets = new ArrayList<>();
 
         if (user != null) {
-            brandRepository.findByUserId(user.getId()).ifPresent(brand -> {
+            brandRepository.findFirstByUserIdOrderByIdDesc(user.getId()).ifPresent(brand -> {
                 try {
                     if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
                         com.fasterxml.jackson.databind.JsonNode factsNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(brand.getFacts());
@@ -375,10 +388,10 @@ public class CreativeStudioService {
                                     presets.add(CreativeDto.CreativePreset.builder()
                                             .id("brand-item-" + Math.abs(name.hashCode()))
                                             .title(name + " (" + price + " ₽)")
-                                            .description("Фирменное предложение из меню " + (brand.getName() != null ? brand.getName() : ""))
-                                            .prompt(String.format("Студийная фуд-съёмка позиции %s, аппетитная сервировка, естественный свет в интерьере %s",
-                                                    name, brand.getName() != null ? brand.getName() : "кофейни"))
-                                            .style("COFFEE_AESTHETIC")
+                                            .description("Позиция из меню " + (brand.getName() != null ? brand.getName() : ""))
+                                            .prompt(String.format("Профессиональная студийная съёмка позиции %s, аппетитная подача, мягкий естественный свет, чистый фон",
+                                                    name))
+                                            .style("STUDIO_COMMERCIAL")
                                             .defaultAspectRatio("1:1")
                                             .suggestedBadge("Хит продаж")
                                             .suggestedPrice(price + " ₽")
@@ -403,52 +416,49 @@ public class CreativeStudioService {
     private List<CreativeDto.CreativePreset> getBasePresets() {
         return List.of(
                 CreativeDto.CreativePreset.builder()
-                        .id("latte-art-cozy")
-                        .title("Уютный сезонный кофе")
-                        .description("Чашка латте с артом на деревянном столике у окна, мягкий рассеянный теплый свет")
-                        .prompt("Чашка свежесваренного капучино с нежным латте-артом, на стильном деревянном столе в уютной кофейне, зерна кофе рядом")
-                        .style("COFFEE_AESTHETIC")
-                        .defaultAspectRatio("1:1")
-                        .suggestedBadge("Сезонная новинка")
-                        .suggestedPrice("320 ₽")
-                        .suggestedCta("Попробовать")
-                        .category("Напитки")
-                        .build(),
-                CreativeDto.CreativePreset.builder()
-                        .id("croissant-breakfast")
-                        .title("Свежая выпечка и десерты")
-                        .description("Золотистый хрустящий круассан со сливочным маслом и ягодами")
-                        .prompt("Свежий французский круассан со слоёной золотистой корочкой, ягоды малины и черники, утренний солнечный свет")
+                        .id("product-hero-shot")
+                        .title("Товар крупным планом")
+                        .description("Ключевой продукт на чистом фоне со студийным светом")
+                        .prompt("Профессиональная студийная съёмка продукта на чистом светлом фоне, мягкие тени, акцент на деталях и текстуре")
                         .style("STUDIO_COMMERCIAL")
                         .defaultAspectRatio("1:1")
                         .suggestedBadge("Хит продаж")
-                        .suggestedPrice("180 ₽")
                         .suggestedCta("Заказать")
-                        .category("Выпечка")
+                        .category("Продукт")
                         .build(),
                 CreativeDto.CreativePreset.builder()
-                        .id("reels-story-special")
+                        .id("reels-vertical-promo")
                         .title("Вертикальный промо-ролик (9:16)")
                         .description("Динамичный Reels / Shorts формат для сторис и клипов")
-                        .prompt("Стильный напиток айс-латте со льдом и карамелью крупным планом, аппетитные брызги, профессиональное студийное освещение")
+                        .prompt("Вертикальный кинематографичный кадр продукта крупным планом, глубокий фон, профессиональное студийное освещение")
                         .style("DARK_LUXURY")
                         .defaultAspectRatio("9:16")
                         .suggestedBadge("Акция дня")
-                        .suggestedPrice("350 ₽")
                         .suggestedCta("Смотреть")
                         .category("Reels & Shorts")
                         .build(),
                 CreativeDto.CreativePreset.builder()
                         .id("retail-sale-banner")
-                        .title("Рекламный баннер распродажи")
+                        .title("Рекламный баннер акции")
                         .description("Широкоформатный баннер для сайта и постов ВКонтакте (16:9)")
-                        .prompt("Минималистичная композиция товаров на дизайнерском подиуме с геометрическими фигурами и неоновыми акцентами")
+                        .prompt("Минималистичная композиция товаров на дизайнерском подиуме с геометрическими фигурами и яркими акцентами")
                         .style("VIBRANT_POP")
                         .defaultAspectRatio("16:9")
                         .suggestedBadge("Скидка 20%")
                         .suggestedPrice("-20%")
                         .suggestedCta("В каталог")
                         .category("Баннеры")
+                        .build(),
+                CreativeDto.CreativePreset.builder()
+                        .id("lifestyle-mood")
+                        .title("Лайфстайл-атмосфера")
+                        .description("Публичное место бренда в уютном естественном свете")
+                        .prompt("Интерьер с мягким естественным светом, уютная атмосфера, люди наслаждаются моментом, тёплые тона")
+                        .style("MINIMALIST")
+                        .defaultAspectRatio("4:5")
+                        .suggestedBadge("Атмосфера")
+                        .suggestedCta("Заходите")
+                        .category("Лайфстайл")
                         .build()
         );
     }

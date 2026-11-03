@@ -29,7 +29,7 @@ public class FallbackTextProvider implements TextGenerationProvider {
     @Override
     public List<ClaudeGenerationService.GeneratedPost> generateCampaignPosts(Brand brand, String goal, int durationDays) {
         String brandName = (brand.getName() != null && !brand.getName().isBlank()) ? brand.getName() : "Наш Бренд";
-        String schedule = "ежедневно с 08:00 до 22:00";
+        String schedule = "";
         String address = "";
 
         Map<String, Integer> menu = new LinkedHashMap<>();
@@ -37,7 +37,7 @@ public class FallbackTextProvider implements TextGenerationProvider {
             if (brand.getFacts() != null && !brand.getFacts().isBlank()) {
                 JsonNode factsNode = objectMapper.readTree(brand.getFacts());
                 if (factsNode.has("schedule")) {
-                    schedule = factsNode.path("schedule").asText(schedule);
+                    schedule = factsNode.path("schedule").asText("");
                 }
                 if (factsNode.has("address")) {
                     address = factsNode.path("address").asText("");
@@ -62,10 +62,10 @@ public class FallbackTextProvider implements TextGenerationProvider {
             log.warn("Failed to parse brand facts in fallback generation: {}", e.getMessage());
         }
 
-        String primaryProduct = "Фирменное предложение";
-        int primaryPrice = 300;
-        String secondaryProduct = "Популярная позиция";
-        int secondaryPrice = 250;
+        String primaryProduct = null;
+        Integer primaryPrice = null;
+        String secondaryProduct = null;
+        Integer secondaryPrice = null;
 
         if (!menu.isEmpty()) {
             List<Map.Entry<String, Integer>> entries = new ArrayList<>(menu.entrySet());
@@ -79,7 +79,7 @@ public class FallbackTextProvider implements TextGenerationProvider {
                     }
                 }
             }
-            if (primaryProduct.equals("Фирменное предложение")) {
+            if (primaryProduct == null) {
                 primaryProduct = entries.get(0).getKey();
                 primaryPrice = entries.get(0).getValue();
             }
@@ -92,38 +92,65 @@ public class FallbackTextProvider implements TextGenerationProvider {
             }
         }
 
-        String locationInfo = address.isBlank() ? "Ждём вас в гости!" : "Ждём вас по адресу: " + address + "!";
+        StringBuilder whereClause = new StringBuilder();
+        if (address != null && !address.isBlank()) {
+            whereClause.append("Ждём вас по адресу: ").append(address).append(". ");
+        }
+        if (schedule != null && !schedule.isBlank()) {
+            whereClause.append("Встречаем вас: ").append(schedule).append(". ");
+        }
+        String endingInfo = whereClause.length() > 0
+                ? whereClause.toString().trim()
+                : "Актуальный график и адрес уточняйте в профиле бренда.";
+
         List<ClaudeGenerationService.GeneratedPost> posts = new ArrayList<>();
+
+        String primaryPhrase;
+        if (primaryProduct != null) {
+            primaryPhrase = "%s за %d ₽".formatted(primaryProduct, primaryPrice);
+        } else {
+            primaryPhrase = "позиции из нашего меню";
+        }
+        String secondaryPhrase;
+        if (secondaryProduct != null) {
+            secondaryPhrase = "%s (%d ₽)".formatted(secondaryProduct, secondaryPrice);
+        } else {
+            secondaryPhrase = null;
+        }
 
         // Post 1: Telegram
         posts.add(ClaudeGenerationService.GeneratedPost.builder()
                 .platform("TELEGRAM")
-                .text(String.format("✨ Приветствуем в %s!\n\nИщете идеальный способ поднять настроение и зарядиться энергией? Попробуйте наше фирменное предложение — %s по цене всего %d ₽!\n\n%s График работы: %s. Приходите в гости или оформляйте предзаказ! ☕💫",
-                        brandName, primaryProduct, primaryPrice, locationInfo, schedule))
+                .text(String.format("✨ Приветствуем в %s!\n\nИщете идеальный способ поднять настроение и зарядиться энергией? Попробуйте: %s.\n\n%s Приходите в гости или оформляйте предзаказ! 💫",
+                        brandName, primaryPhrase, endingInfo))
                 .dayOffset(0)
                 .build());
 
         // Post 2: VK
         posts.add(ClaudeGenerationService.GeneratedPost.builder()
                 .platform("VK")
-                .text(String.format("Как в %s создается настоящий вкус?\n\nМы отбираем только свежие натуральные ингредиенты высшего качества. Наш фаворит среди гостей — %s всего за %d ₽. Идеально сбалансированный вкус и премиальная подача.\n\nЗаглядывайте попробовать сегодня! #%s #гастрономия #свежийвкус",
-                        brandName, primaryProduct, primaryPrice, brandName.replaceAll("\\s+", "_").toLowerCase()))
+                .text(String.format("Как в %s создаётся настоящий вкус?\n\nМы отбираем только свежие натуральные ингредиенты высшего качества. Наш фаворит среди гостей — %s.\n\nЗаглядывайте попробовать сегодня! #%s #ввашемгороде #свежийвкус",
+                        brandName, primaryPhrase, brandName.replaceAll("\\s+", "_").toLowerCase()))
                 .dayOffset(2)
                 .build());
 
         // Post 3: Telegram
+        String post3Body = secondaryPhrase != null
+                ? String.format("Сделайте перерыв на обед особенным: рекомендуем %s и %s. Отличный повод встретиться с коллегами и друзьями!",
+                        primaryPhrase, secondaryPhrase)
+                : String.format("Сделайте перерыв на обед особенным — команда %s подберёт угощение под ваш вкус.", brandName);
         posts.add(ClaudeGenerationService.GeneratedPost.builder()
                 .platform("TELEGRAM")
-                .text(String.format("🔥 Специальное предложение в %s!\n\nСделайте перерыв на обед особенным: попробуйте %s (%d ₽) или побалуйте себя %s (%d ₽). Отличный повод встретиться с коллегами и друзьями!\n\n%s",
-                        brandName, primaryProduct, primaryPrice, secondaryProduct, secondaryPrice, locationInfo))
+                .text(String.format("🔥 Специальная подборка в %s!\n\n%s\n\n%s",
+                        brandName, post3Body, endingInfo))
                 .dayOffset(4)
                 .build());
 
         // Post 4: Instagram
         posts.add(ClaudeGenerationService.GeneratedPost.builder()
                 .platform("INSTAGRAM")
-                .text(String.format("Идеальный день начинается с маленьких удовольствий в %s ✨ Насладитесь уютной атмосферой и попробуйте %s (%d ₽). А как вы планируете провести эти дни? Делитесь в комментариях! 👇✨ #%s #weekend #lifestyle",
-                        brandName, primaryProduct, primaryPrice, brandName.replaceAll("\\s+", "_").toLowerCase()))
+                .text(String.format("Идеальный день начинается с маленьких удовольствий в %s ✨ Насладитесь атмосферой и попробуйте %s. А как вы планируете провести эти дни? Делитесь в комментариях! 👇✨ #%s",
+                        brandName, primaryPhrase, brandName.replaceAll("\\s+", "_").toLowerCase()))
                 .dayOffset(6)
                 .build());
 

@@ -15,6 +15,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.UUID;
 
 @Component
 @RequiredArgsConstructor
@@ -22,23 +23,40 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtTokenProvider tokenProvider;
     private final UserRepository userRepository;
+    private final UserSessionRepository sessionRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveToken(request);
-        if (StringUtils.hasText(token) && tokenProvider.validateToken(token)) {
-            Long userId = tokenProvider.getUserIdFromToken(token);
-            userRepository.findById(userId).ifPresent(user -> {
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
-                        user,
-                        null,
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER"))
-                );
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-            });
+        if (StringUtils.hasText(token) && tokenProvider.validateToken(token) && tokenProvider.isAccessToken(token)) {
+            UUID sessionId = tokenProvider.getSessionIdFromToken(token);
+            boolean sessionValid = true;
+            if (sessionId != null) {
+                var sessionOpt = sessionRepository.findById(sessionId);
+                if (sessionOpt.isEmpty() || !sessionOpt.get().isActive()) {
+                    sessionValid = false;
+                }
+            }
+
+            if (sessionValid) {
+                Long userId = tokenProvider.getUserIdFromToken(token);
+                userRepository.findById(userId).ifPresent(user -> {
+                    String role = user.getCanteenRole() != null ? user.getCanteenRole().toUpperCase() : "ADMIN";
+                    var authorities = java.util.List.of(
+                            new SimpleGrantedAuthority("ROLE_" + role),
+                            new SimpleGrantedAuthority("ROLE_USER")
+                    );
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                            user,
+                            null,
+                            authorities
+                    );
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                });
+            }
         }
 
         filterChain.doFilter(request, response);

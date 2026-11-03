@@ -14,25 +14,25 @@ class CreativePresetsTest {
     );
 
     @Test
-    @DisplayName("Should supply rich business presets covering coffee, bakery, Reels, and sale banners")
+    @DisplayName("Should supply rich business presets covering product, reels, sale banner, and lifestyle shots")
     void testGetPresets() {
         List<CreativeDto.CreativePreset> presets = service.getCreativePresets();
         assertThat(presets).isNotEmpty();
         assertThat(presets.size()).isGreaterThanOrEqualTo(4);
 
-        // Check coffee preset
-        CreativeDto.CreativePreset coffeePreset = presets.stream()
-                .filter(p -> "latte-art-cozy".equals(p.getId()))
+        // Check product preset (square)
+        CreativeDto.CreativePreset productPreset = presets.stream()
+                .filter(p -> "product-hero-shot".equals(p.getId()))
                 .findFirst()
                 .orElse(null);
-        assertThat(coffeePreset).isNotNull();
-        assertThat(coffeePreset.getDefaultAspectRatio()).isEqualTo("1:1");
-        assertThat(coffeePreset.getSuggestedBadge()).isNotBlank();
-        assertThat(coffeePreset.getSuggestedCta()).isNotBlank();
+        assertThat(productPreset).isNotNull();
+        assertThat(productPreset.getDefaultAspectRatio()).isEqualTo("1:1");
+        assertThat(productPreset.getSuggestedBadge()).isNotBlank();
+        assertThat(productPreset.getSuggestedCta()).isNotBlank();
 
         // Check vertical video preset (9:16)
         CreativeDto.CreativePreset reelsPreset = presets.stream()
-                .filter(p -> "reels-story-special".equals(p.getId()))
+                .filter(p -> "reels-vertical-promo".equals(p.getId()))
                 .findFirst()
                 .orElse(null);
         assertThat(reelsPreset).isNotNull();

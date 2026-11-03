@@ -1,0 +1,112 @@
+:root {
+  /* SmartCanteen — Premium Apple × JetBrains Palette (Premium Graphite) */
+  --bg: #111318;
+  --sidebar-bg: #171A21;
+  --topheader-bg: #191D25;
+  --surface: #1D222C;
+  --surface-hover: #242A35;
+  --surface-active: #2D3543;
+  --surface-modal: #272E3A;
+  
+  --ink: #F5F7FA;
+  --ink-heading: #FFFFFF;
+  --muted: #A6AFBC;
+  --muted-dark: #7F8998;
+  --muted-light: #C2CAD6;
+  --disabled: #606B7A;
+
+  --border: #303744;
+  --border-focus: #5B8CFF;
+  --border-subtle: #242A35;
+
+  /* Accents (Apple / JetBrains signature) */
+  --accent: #5B8CFF;
+  --accent-hover: #4577EB;
+  --accent-active: #3367DC;
+  --accent-dark: #1E3360;
+  --on-accent: #FFFFFF;
+
+  --accent-secondary: #9477FF;
+  --accent2: #9477FF;
+  --accent-cyan: #55C7DE;
+  --accent-purple: #A58BFA;
+  --accent-orange: #FF9B62;
+
+  /* Semantic Status Tokens */
+  --success: #39C98A;
+  --success-bg: rgba(57, 201, 138, 0.12);
+  --success-border: rgba(57, 201, 138, 0.25);
+
+  --warning: #FFB547;
+  --warning-bg: rgba(255, 181, 71, 0.12);
+  --warning-border: rgba(255, 181, 71, 0.25);
+
+  --danger: #FF647C;
+  --danger-bg: rgba(255, 100, 124, 0.12);
+  --danger-border: rgba(255, 100, 124, 0.25);
+
+  --info: #55A7FF;
+  --info-bg: rgba(85, 167, 255, 0.12);
+  --info-border: rgba(85, 167, 255, 0.25);
+
+  --chip-bg: #242A35;
+  --chip-text: #F5F7FA;
+
+  --font: "SF Pro Display", "Inter", "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --radius-card: 18px;
+  --radius-control: 12px;
+  --control-height: 44px;
+}
+
+[data-theme="dark"],
+.dark {
+  --bg: #111318;
+  --sidebar-bg: #171A21;
+  --topheader-bg: #191D25;
+  --surface: #1D222C;
+  --surface-hover: #242A35;
+  --surface-active: #2D3543;
+  --surface-modal: #272E3A;
+  
+  --ink: #F5F7FA;
+  --ink-heading: #FFFFFF;
+  --muted: #A6AFBC;
+  --muted-dark: #7F8998;
+  --muted-light: #C2CAD6;
+  --disabled: #606B7A;
+
+  --border: #303744;
+  --border-focus: #5B8CFF;
+  --border-subtle: #242A35;
+
+  --accent: #5B8CFF;
+  --accent-hover: #4577EB;
+  --accent-active: #3367DC;
+  --accent-dark: #1E3360;
+  --on-accent: #FFFFFF;
+
+  --accent-secondary: #9477FF;
+  --accent2: #9477FF;
+  --accent-cyan: #55C7DE;
+  --accent-purple: #A58BFA;
+  --accent-orange: #FF9B62;
+
+  --success: #39C98A;
+  --success-bg: rgba(57, 201, 138, 0.12);
+  --success-border: rgba(57, 201, 138, 0.25);
+
+  --warning: #FFB547;
+  --warning-bg: rgba(255, 181, 71, 0.12);
+  --warning-border: rgba(255, 181, 71, 0.25);
+
+  --danger: #FF647C;
+  --danger-bg: rgba(255, 100, 124, 0.12);
+  --danger-border: rgba(255, 100, 124, 0.25);
+
+  --info: #55A7FF;
+  --info-bg: rgba(85, 167, 255, 0.12);
+  --info-border: rgba(85, 167, 255, 0.25);
+
+  --chip-bg: #242A35;
+  --chip-text: #F5F7FA;
+}

@@ -31,7 +31,7 @@ public class CampaignService {
 
     @Transactional
     public CampaignDto.Response createCampaign(Long userId, CampaignDto.CreateRequest request) {
-        Brand brand = brandRepository.findByUserId(userId)
+        Brand brand = brandRepository.findFirstByUserIdOrderByIdDesc(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Сначала заполните профиль бренда"));
 
         LocalDate start = request.getPeriodStart() != null ? request.getPeriodStart() : LocalDate.now();
@@ -73,7 +73,7 @@ public class CampaignService {
 
     @Transactional(readOnly = true)
     public List<CampaignDto.Response> getCampaigns(Long userId) {
-        Brand brand = brandRepository.findByUserId(userId).orElse(null);
+        Brand brand = brandRepository.findFirstByUserIdOrderByIdDesc(userId).orElse(null);
         if (brand == null) return List.of();
 
         return campaignRepository.findByBrandIdOrderByCreatedAtDesc(brand.getId()).stream()
