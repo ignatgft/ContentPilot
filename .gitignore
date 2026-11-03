@@ -66,9 +66,6 @@ mobile/.pub-cache/
 # Temporary / Scratch docs & Kits
 design-kit/
 android-kit/
+docs/
 COMPLETE_PROJECT_GUIDE.md
 PLATFORM_VECTOR_TRANSITION.md
-docs/CHAMPIONSHIP_AUDIT.md
-docs/JURY_DEMO_SCRIPT.md
-docs/SMARTCANTEEN_SYSTEM_GUIDE.md
-docs/smartcanteen_pack/
